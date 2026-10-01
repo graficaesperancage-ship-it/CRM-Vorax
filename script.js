@@ -237,6 +237,8 @@ if(sl&&$('.kb'))$('.kb').scrollLeft=sl;sync()};
 const go=(t,p={})=>{S={tab:t,q:'',cat:ALL,est:'Todos',stt:'Todas',rec:true,dias:DIAS,vw:ls('crm_vw')||'lista',...p};if(p.est)S.vw='lista';render();scrollTo(0,0)};
 
 document.addEventListener('click',e=>{const t=e.target;
+ /* WhatsApp no computador: vai direto ao WhatsApp Web, sempre na mesma aba (no celular segue o wa.me, que abre o app) */
+ const wl=t.closest('a[href^="https://wa.me/"]');if(wl&&!matchMedia('(pointer:coarse)').matches){e.preventDefault();window.open('https://web.whatsapp.com/send?phone='+wl.getAttribute('href').split('wa.me/')[1],'whatsapp_web');return}
  const li=t.closest('.cbx li[data-id]');if(li)return cbPick(li.closest('.cbx'),li.dataset.id);
  const b=t.closest('[data-go],[data-a],[data-do],[data-sort]');
  if(b){if(b.dataset.sort){const k=b.dataset.sort;S.so={k,d:S.act?.k==k&&S.act.d==1?-1:1};$('#view').innerHTML=V[S.tab].list();return}
