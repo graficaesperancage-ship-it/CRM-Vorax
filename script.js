@@ -130,7 +130,7 @@ dashboard:{title:'Dashboard',bar:()=>`<label>Considerar negócio parado após <s
 et(id){V.tarefas.e(id)},dn(id){V.negocios.d(id)}},
 
 contatos:{title:'Contatos',
-bar:()=>`<input data-s="q" type="search" placeholder="Buscar nome, empresa, telefone ou e-mail" value="${h(S.q)}" aria-label="Buscar"><button class="b p" data-a="n">Novo contato</button><button class="b" data-a="imp">Importar CSV</button><button class="b" data-a="exp">Exportar CSV</button>`,
+bar:()=>`<input data-s="q" type="search" placeholder="Buscar nome, empresa, telefone ou e-mail" value="${h(S.q)}" aria-label="Buscar"><button class="b p" data-a="n">Novo contato</button><button class="b" data-a="imp">Importar CSV</button><button class="b" data-a="exp">Exportar CSV</button><select class="wsel" data-wa aria-label="Ao clicar em WhatsApp">${[['web','WhatsApp: abrir no navegador'],['app','WhatsApp: abrir app do computador'],['copiar','WhatsApp: só copiar o número']].map(x=>op(x,ls('crm_wa')||'web')).join('')}</select>`,
 list(){const q=S.q.toLowerCase(),qd=dg(q),L=srt(D.contatos.filter(c=>!q||[c.nome,c.empresa,c.telefone,c.email].some(v=>(v||'').toLowerCase().includes(q))||(qd&&dg(c.telefone).includes(qd))),{n:c=>c.nome,e:c=>c.empresa,s:c=>c.status},{k:'n',d:1});st(`${L.length} contato(s) exibido(s)`);
  return T([['Nome','n'],['Empresa','e'],'Telefone','E-mail',['Status','s'],''],L.map(c=>[`<b>${h(c.nome)}</b>`,h(c.empresa),tel(c.telefone),mail(c.email),bd(c.status,CST[c.status]),AC([['i','Nova interação'],['e','Editar'],['x','Excluir']],c.id)]),'Nenhum contato encontrado.',[],()=>'','tc')},
 form(c){const v=c||{status:'Lead'};dlg(c?'Editar contato':'Novo contato',F('Nome','nome',v.nome,'text','required',1)+F('Empresa','empresa',v.empresa)+F('Telefone','telefone',ftel(v.telefone),'tel','data-m="tel" autocomplete="off" inputmode="tel" placeholder="(00) 00000-0000"')+F('E-mail','email',v.email,'email')+F('Origem (ex: Indicação, Site)','origem',v.origem)+F('Status','status',v.status,'select',SCT)+F('Endereço','endereco',v.endereco,'text','',1)+F('Tags (separadas por vírgula)','tags',v.tags,'text','',1)+F('Observações','observacoes',v.observacoes,'area','',1),f=>{const d=fd(f);d.nome=d.nome.trim();if(c)Object.assign(c,d,{atualizado_em:now()});else D.contatos.push({id:nid('contatos'),...d,criado_em:now(),atualizado_em:now()});commit('Contato salvo.')})},
@@ -232,13 +232,17 @@ const render=()=>{const v=V[S.tab],sl=$('.kb')?.scrollLeft;
 $('#nav').innerHTML=Object.entries(V).map(([k,x])=>`<button type="button" data-go="${k}" class="${k==S.tab?'on':''}"${k==S.tab?' aria-current="page"':''}>${ic(k)}${x.title}</button>`).join('');
 $('#tb').innerHTML=MAIN.map(k=>`<button type="button" data-go="${k}" class="${k==S.tab?'on':''}">${ic(k)}<span>${V[k].title}</span></button>`).join('')+`<button type="button" data-do="more" class="${MAIN.includes(S.tab)?'':'on'}">${ic('mais')}<span>Mais</span></button>`;
 const fb=$('#fab');fb.hidden=!FABL[S.tab];fb.textContent='+';fb.setAttribute('aria-label',FABL[S.tab]||'');
-$('#h').textContent=v.title;$('#bar').innerHTML=v.bar();$('#view').innerHTML=v.list();$('#co').textContent=D.empresa?.nome||'Gestão de clientes';
+$('#h').textContent=v.title;$('#bar').innerHTML=v.bar();$('#view').innerHTML=v.list();$('#co').textContent=D.empresa?.nome||'Gestão de clientes';{const l=D.empresa?.logo,i=$('#bl');if(l)i.src=l;i.hidden=!l;$('#bi').style.display=l?'none':''}
 if(sl&&$('.kb'))$('.kb').scrollLeft=sl;sync()};
 const go=(t,p={})=>{S={tab:t,q:'',cat:ALL,est:'Todos',stt:'Todas',rec:true,dias:DIAS,vw:ls('crm_vw')||'lista',...p};if(p.est)S.vw='lista';render();scrollTo(0,0)};
 
 document.addEventListener('click',e=>{const t=e.target;
  /* WhatsApp no computador: vai direto ao WhatsApp Web, sempre na mesma aba (no celular segue o wa.me, que abre o app) */
- const wl=t.closest('a[href^="https://wa.me/"]');if(wl&&!matchMedia('(pointer:coarse)').matches){e.preventDefault();window.open('https://web.whatsapp.com/send?phone='+wl.getAttribute('href').split('wa.me/')[1],'whatsapp_web');return}
+ const wl=t.closest('a[href^="https://wa.me/"]');if(wl&&!matchMedia('(pointer:coarse)').matches){e.preventDefault();const n=wl.getAttribute('href').split('wa.me/')[1],m=ls('crm_wa')||'web';
+  if(m=='app')location.href='whatsapp://send?phone='+n;
+  else if(m=='copiar'){const ok=()=>toast('Número copiado: +'+n+'. Cole na busca do WhatsApp Web.');navigator.clipboard?.writeText(n).then(ok,()=>toast('Não foi possível copiar: +'+n,{err:1}))||toast('+'+n)}
+  else window.open('https://web.whatsapp.com/send?phone='+n,'whatsapp_web');
+  return}
  const li=t.closest('.cbx li[data-id]');if(li)return cbPick(li.closest('.cbx'),li.dataset.id);
  const b=t.closest('[data-go],[data-a],[data-do],[data-sort]');
  if(b){if(b.dataset.sort){const k=b.dataset.sort;S.so={k,d:S.act?.k==k&&S.act.d==1?-1:1};$('#view').innerHTML=V[S.tab].list();return}
@@ -250,7 +254,7 @@ document.addEventListener('click',e=>{const t=e.target;
 document.addEventListener('input',e=>{const k=e.target.dataset.s;if(!k)return;S[k]=e.target.type=='checkbox'?e.target.checked:e.target.value;if(k=='dias'){DIAS=+S.dias;ls('crm_dias',DIAS)}$('#view').innerHTML=V[S.tab].list()});
 /* máscaras e limpeza de erro (fase de captura: roda antes dos outros ouvintes) */
 document.addEventListener('input',e=>{const t=e.target;if(t.hasAttribute?.('aria-invalid'))clr(t);const m=MK[t.dataset?.m];if(m){const v=m(t.value);if(v!==t.value)t.value=v}},true);
-document.addEventListener('change',e=>{if(e.target.dataset.mv)return mover(+e.target.dataset.mv,e.target.value);if(e.target.id!='lg'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{S.logo=r.result;$('#pv').src=r.result;$('#pv').hidden=false};r.readAsDataURL(e.target.files[0])});
+document.addEventListener('change',e=>{if(e.target.dataset.wa!==undefined){ls('crm_wa',e.target.value);return toast('Preferência do WhatsApp salva.')}if(e.target.dataset.mv)return mover(+e.target.dataset.mv,e.target.value);if(e.target.id!='lg'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{S.logo=r.result;$('#pv').src=r.result;$('#pv').hidden=false};r.readAsDataURL(e.target.files[0])});
 /* arrastar e soltar no quadro */
 document.addEventListener('dragstart',e=>{const c=e.target.closest?.('.kc');if(!c)return;e.dataTransfer.setData('text/plain',c.dataset.id);e.dataTransfer.effectAllowed='move';c.classList.add('dg')});
 document.addEventListener('dragend',()=>document.querySelectorAll('.dg,.ov').forEach(x=>x.classList.remove('dg','ov')));

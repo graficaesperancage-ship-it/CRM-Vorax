@@ -6,6 +6,7 @@ body{margin:0;font:14px/1.45 "Segoe UI",system-ui,sans-serif;background:var(--bg
 a{color:var(--br)}
 aside{width:210px;flex:none;background:#0b2a3c;color:#fff;padding:18px 12px;position:sticky;top:0;height:100vh;overflow:auto}
 .brand{display:flex;gap:10px;align-items:center;padding:0 8px 16px}.brand b{display:block;font-size:16px}.brand small{color:#9fc3d8;display:block;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#bl{width:34px;height:34px;flex:none;object-fit:contain;background:#fff;border-radius:7px;padding:2px}
 nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;margin:2px 0;border:0;border-radius:6px;background:none;color:#cfe3ef;font:inherit;cursor:pointer}
 nav button:hover{background:#ffffff18}nav button.on{background:#ffffff26;color:#fff;font-weight:600}
 .ic{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -73,13 +74,14 @@ footer{color:var(--mu);font-size:12px}#pv{max-height:80px;max-width:200px}
 .kc{display:flex;flex-direction:column;gap:4px;background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:10px;cursor:grab}.kc:hover{border-color:var(--br)}.kc.dg{opacity:.4}.kc>span{color:var(--mu)}.kc>div{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.kc small{color:var(--mu)}
 .mv{display:none;margin-top:4px;width:100%}
 @media(hover:none),(pointer:coarse){.mv{display:block}.kc{cursor:pointer}}
+@media(pointer:coarse){.wsel{display:none}}
 #tb,#fab{display:none}
 @media(max-width:1000px){aside{width:176px}main{padding:18px}}
 @media(max-width:760px){
 body{display:block}
 /* topo: marca, tema e sair; a navegação fica na barra de baixo */
 aside{width:auto;height:auto;position:sticky;top:0;z-index:5;overflow:visible;padding:10px 12px 10px;padding-top:calc(10px + env(safe-area-inset-top,0px));display:grid;grid-template-columns:1fr auto auto;grid-template-areas:"brand tema sair";align-items:center;gap:6px 8px}
-.brand{grid-area:brand;padding:0;min-width:0}.brand svg{width:24px;height:24px}.brand b{font-size:15px}.brand small{max-width:100%}
+.brand{grid-area:brand;padding:0;min-width:0}.brand svg{width:24px;height:24px}#bl{width:30px;height:30px}.brand b{font-size:15px}.brand small{max-width:100%}
 #sair{grid-area:sair;margin:0!important;padding:6px 12px;background:#ffffff18;border-color:#ffffff30;color:#fff}
 #tema{grid-area:tema;width:auto;margin:0;padding:6px 10px;background:#ffffff18;border-color:#ffffff30;color:#fff}#tema .tx{display:none}
 #nav{display:none}
