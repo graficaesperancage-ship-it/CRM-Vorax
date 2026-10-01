@@ -96,11 +96,14 @@ onAuthStateChanged(auth, async u => {
   if (!u) { uid = null; $("#login").showModal(); return; }
   uid = u.uid;
   // só admins (documento admins/{uid}) podem usar o sistema
-  let admin = false;
-  try { admin = (await getDoc(doc(db, "admins", uid))).exists(); } catch {}
+  let admin = false, erro = "";
+  try { admin = (await getDoc(doc(db, "admins", uid))).exists(); } catch (e) { erro = e.code || String(e); }
   if (!admin) {
+    const meuUid = uid;
     await signOut(auth);
-    $("#le").textContent = "Este usuário não tem permissão de administrador.";
+    $("#le").textContent = erro
+      ? "Erro ao verificar permissão (" + erro + "). Publique as regras novas do Firestore."
+      : "Sem permissão: não existe o documento admins/" + meuUid + " no Firestore.";
     $("#login").showModal();
     return;
   }
