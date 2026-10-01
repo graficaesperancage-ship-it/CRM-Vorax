@@ -1,0 +1,32 @@
+:root{--bg:#f3f5f7;--sf:#fff;--ink:#15202b;--mu:#5b6876;--ln:#d8dfe6;--br:#0a6c9c;--bb:#0a6c9c;--rd:#b3261e;--hv:#eaf1f6}
+@media(prefers-color-scheme:dark){:root{--bg:#10171d;--sf:#18212a;--ink:#e6edf3;--mu:#97a5b3;--ln:#2a3641;--br:#5cc0ee;--rd:#ff8a80;--hv:#202c37}}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;min-height:100vh}
+aside{width:210px;flex:none;background:#0b2a3c;color:#fff;padding:18px 12px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{display:flex;gap:10px;align-items:center;padding:0 8px 16px}.brand b{display:block;font-size:16px}.brand small{color:#9fc3d8;display:block;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+nav button{display:block;width:100%;text-align:left;padding:9px 12px;margin:2px 0;border:0;border-radius:6px;background:none;color:#cfe3ef;font:inherit;cursor:pointer}
+nav button:hover{background:#ffffff18}nav button.on{background:#ffffff26;color:#fff;font-weight:600}
+main{flex:1;min-width:0;padding:22px 26px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;justify-content:space-between;align-items:center}h1{font-size:22px;margin:0}h2{font-size:16px;margin:8px 0 0}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.bar input[type=search]{width:260px}.bar label{display:flex;gap:6px;align-items:center}
+input,select,textarea{font:inherit;padding:7px 9px;border:1px solid var(--ln);border-radius:6px;background:var(--sf);color:inherit;max-width:100%}
+.b{font:inherit;padding:7px 13px;border:1px solid var(--ln);border-radius:6px;background:var(--sf);color:var(--ink);cursor:pointer}.b:hover{background:var(--hv)}
+.p{background:var(--bb);border-color:var(--bb);color:#fff}.p:hover{background:#085a82}
+:focus-visible{outline:2px solid var(--br);outline-offset:1px}
+.tw{overflow:auto;background:var(--sf);border:1px solid var(--ln);border-radius:8px;max-height:calc(100vh - 200px)}
+table{border-collapse:collapse;width:100%}th{position:sticky;top:0;background:var(--hv);text-align:left;font-weight:600;padding:8px 10px;white-space:nowrap}
+td{padding:7px 10px;border-top:1px solid var(--ln);vertical-align:top}.r{text-align:right;white-space:nowrap}tr:hover td{background:var(--hv)}
+.em{text-align:center;color:var(--mu);padding:26px}
+.ac{white-space:nowrap}.ac button{border:0;background:none;color:var(--br);cursor:pointer;font:inherit;padding:2px 6px}.ac .x{color:var(--rd)}
+.pl::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:6px}.pl{white-space:nowrap}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.cd{background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:14px}.cd b{display:block;font-size:24px;font-variant-numeric:tabular-nums}.cd span{color:var(--mu)}
+.sg{display:grid;grid-template-columns:150px 1fr 40px;gap:10px;align-items:center;margin:7px 0}.sg i{height:10px;background:var(--hv);border-radius:5px;overflow:hidden}.sg u{display:block;height:100%}.sg em{font-style:normal;text-align:right}
+.o td{background:rgba(224,170,0,.18)}.pr td{background:rgba(120,130,140,.16)}.bz td{background:rgba(205,110,50,.16)}
+.form{background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:18px;max-width:640px}
+dialog{border:1px solid var(--ln);border-radius:10px;background:var(--sf);color:var(--ink);padding:18px 20px;width:min(680px,96vw)}dialog::backdrop{background:#0008}dialog h2{margin:0 0 12px}
+.fb,.form{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}.fb{max-height:68vh;overflow:auto;padding:2px}
+label{font-size:12px;color:var(--mu)}label input,label select,label textarea{display:block;width:100%;margin-top:3px;font-size:14px;color:var(--ink)}.w{grid-column:1/-1}
+.fa{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.pb table td{padding:4px 6px}.pb .bar{margin:6px 0}.tot{font-weight:600;font-size:16px;text-align:right}
+footer{color:var(--mu);font-size:12px}#pv{max-height:80px;max-width:200px}
+@media(max-width:760px){body{display:block}aside{width:auto;height:auto;position:static}nav{display:flex;overflow:auto}nav button{width:auto;white-space:nowrap}.fb,.form{grid-template-columns:1fr}main{padding:14px}}
