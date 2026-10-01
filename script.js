@@ -2,7 +2,7 @@ const STG=["Novo","Contato Feito","Proposta Enviada","Em Negociação","Ganho","
 COR=["#0e9fc4","#3b6fd8","#c9a20a","#d9531e","#1f9d55","#0b7a62","#8b97a3"],REC=["Ganho","Cliente Recorrente"],
 SCT=["Lead","Prospect","Cliente","Inativo"],TIP=["Ligação","Reunião","E-mail","Follow-up","Outro"],
 FPG=["Dinheiro","Pix","Cartão de Crédito","Cartão de Débito","Boleto","Transferência","Outro"],
-STT=["Pendente","Concluída","Cancelada"],ALL="Todas as categorias",SEM="(Sem categoria)",VER="2.0.0-html";
+STT=["Pendente","Concluída","Cancelada"],ALL="Todas as categorias",SEM="(Sem categoria)",VER="2.0.0-html",APP="CRM Vorax";
 let D={contatos:[],negocios:[],tarefas:[],interacoes:[],produtos:[],negocio_produtos:[],empresa:{}},S={},tm;
 const $=s=>document.querySelector(s),
 h=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),
@@ -25,8 +25,8 @@ AC=(a,id)=>`<span class="ac">${a.map(([k,l])=>`<button data-a="${k}" data-id="${
 
 /* ---------- persistência (IndexedDB) ---------- */
 const idb=()=>new Promise((ok,no)=>{const r=indexedDB.open('crm_offline',1);r.onupgradeneeded=()=>r.result.createObjectStore('k');r.onsuccess=()=>ok(r.result);r.onerror=no});
-const load=async()=>{try{const d=await idb();return await new Promise(ok=>{const q=d.transaction('k').objectStore('k').get('db');q.onsuccess=()=>ok(q.result);q.onerror=()=>ok()})}catch{}};
-const save=()=>{clearTimeout(tm);tm=setTimeout(async()=>{try{(await idb()).transaction('k','readwrite').objectStore('k').put(D,'db')}catch{alert('Não foi possível gravar os dados neste navegador. Faça um backup agora.')}},50)};
+const loadLocal=async()=>{try{const d=await idb();return await new Promise(ok=>{const q=d.transaction('k').objectStore('k').get('db');q.onsuccess=()=>ok(q.result);q.onerror=()=>ok()})}catch{}};
+const save=()=>{clearTimeout(tm);tm=setTimeout(async()=>{try{await window.FB.save(D)}catch(e){console.error(e);alert('Não foi possível gravar os dados na nuvem. Verifique a conexão e faça um backup agora.')}},50)};
 const dl=(n,t,m)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:m}));a.download=n;a.click()};
 const stamp=()=>now().replace(/\D/g,'').replace(/^(\d{8})/,'$1_');
 
@@ -35,7 +35,7 @@ function dlg(title,body,ok){const d=$('#dlg');d.oninput=null;d.innerHTML=`<form>
 const commit=m=>{save();render();m&&st(m)};
 const cab=()=>{const e=D.empresa||{};return`<div class="cab">${e.logo?`<img src="${e.logo}">`:''}<div><h1>${h(e.nome||'(Nome da empresa não configurado)')}</h1><p>${h(e.endereco)}</p>${e.cnpj?`<p>CNPJ: ${h(e.cnpj)}</p>`:''}${e.contato?`<p>Contato: ${h(e.contato)}</p>`:''}</div></div>`};
 const PCSS=`body{font:13px Arial,sans-serif;color:#222;margin:30px}.cab{display:flex;align-items:center;gap:20px;border-bottom:3px solid #333;padding-bottom:14px;margin-bottom:18px}.cab img{max-height:90px;max-width:180px;object-fit:contain}h1{margin:0 0 6px;font-size:22px}p{margin:2px 0}h2{font-size:16px;margin:20px 0 8px;border-bottom:1px solid #ddd;padding-bottom:4px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px 9px;text-align:left}th{background:#f0f0f0}.r{text-align:right;white-space:nowrap}tr.g td{background:#e4e4e4;font-weight:bold}.ft{margin-top:22px;font-size:11px;color:#888;text-align:right}.np{position:fixed;top:10px;right:10px;padding:8px 14px}@media print{.np{display:none}body{margin:10mm}}`;
-function doc(title,body){const w=window.open('','_blank');if(!w)return alert('Permita pop-ups para este arquivo e tente de novo.');w.document.write(`<!DOCTYPE html><html lang="pt-BR"><meta charset="utf-8"><title>${h(title)}</title><style>${PCSS}</style><button class="np" onclick="print()">Imprimir / Salvar PDF</button>${cab()}${body}<div class="ft">Gerado por CRM Vorax em ${new Date().toLocaleString('pt-BR')}</div>`);w.document.close()}
+function doc(title,body){const w=window.open('','_blank');if(!w)return alert('Permita pop-ups para este arquivo e tente de novo.');w.document.write(`<!DOCTYPE html><html lang="pt-BR"><meta charset="utf-8"><title>${h(title)}</title><style>${PCSS}</style><button class="np" onclick="print()">Imprimir / Salvar PDF</button>${cab()}${body}<div class="ft">Gerado por ${APP} em ${new Date().toLocaleString('pt-BR')}</div>`);w.document.close()}
 const semEmpresa=()=>{if(!(D.empresa?.nome||'').trim())alert("Dica: configure os dados da empresa (nome, endereço, CNPJ, contato e logomarca) na aba Empresa para deixar a impressão mais profissional.")};
 
 /* ---------- abas ---------- */
@@ -116,9 +116,9 @@ rl(){D.empresa.logo=null;commit('Logomarca removida.')}},
 
 backup:{title:'Backup',bar:()=>'',
 list(){return`<div class="form"><p class="w" style="margin:0">Os dados ficam salvos <b>neste navegador</b>, neste computador. Limpar os dados do navegador apaga o CRM — faça backup com frequência, principalmente antes de formatar, trocar de computador ou atualizar o arquivo.</p><div class="w bar"><button class="b p" data-a="exp">Exportar backup (.json)</button><button class="b" data-a="imp">Importar backup (.json)</button></div><p class="w" style="margin:0;color:var(--mu)">Ao importar, uma cópia de segurança dos dados atuais é baixada automaticamente antes de substituí-los.</p></div>`},
-exp(pre){dl(`${pre=='pre'?'pre_import_backup':'backup_crm'}_${stamp()}.json`,JSON.stringify({app:'CRM Vorax',versao:VER,gerado_em:new Date().toISOString(),...D}),'application/json');pre!='pre'&&st('Backup exportado.')},
+exp(pre){dl(`${pre=='pre'?'pre_import_backup':'backup_crm'}_${stamp()}.json`,JSON.stringify({app:APP,versao:VER,gerado_em:new Date().toISOString(),...D}),'application/json');pre!='pre'&&st('Backup exportado.')},
 imp(){const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=async()=>{let j;try{j=JSON.parse(await i.files[0].text())}catch{return alert('O arquivo selecionado não é um backup válido (.json).')}
- if(!Array.isArray(j.contatos)||!Array.isArray(j.negocios))return alert('Este arquivo não parece ser um backup do CRM Vorax.');
+ if(!Array.isArray(j.contatos)||!Array.isArray(j.negocios))return alert(`Este arquivo não parece ser um backup do ${APP}.`);
  if(!confirm(`Importar ${j.contatos.length} contatos, ${j.negocios.length} negócios e ${(j.produtos||[]).length} produtos? Isto substitui todos os dados atuais.`))return;
  this.exp('pre');for(const k of ['contatos','negocios','tarefas','interacoes','produtos','negocio_produtos'])D[k]=Array.isArray(j[k])?j[k]:[];D.empresa=j.empresa||{};commit('Backup importado com sucesso.')};i.click()}}
 };
@@ -132,4 +132,6 @@ const go=t=>{S={tab:t,q:'',cat:ALL,est:'Todos',stt:'Todas',rec:true};render()};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-go],[data-a]');if(!b)return;if(b.dataset.go)return go(b.dataset.go);V[S.tab][b.dataset.a]?.(+b.dataset.id)});
 document.addEventListener('input',e=>{const k=e.target.dataset.s;if(k){S[k]=e.target.type=='checkbox'?e.target.checked:e.target.value;$('#view').innerHTML=V[S.tab].list()}});
 document.addEventListener('change',e=>{if(e.target.id!='lg'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{S.logo=r.result;$('#pv').src=r.result;$('#pv').hidden=false};r.readAsDataURL(e.target.files[0])});
-(async()=>{const s=await load();if(s)D={...D,...s};navigator.storage?.persist?.();go('dashboard')})();
+window.boot=async()=>{let s,mig=false;try{s=await window.FB.load()}catch(e){console.error(e);return alert('Não foi possível carregar os dados da nuvem. Verifique a conexão e recarregue a página.')}
+if(!s){const l=await loadLocal();if(l&&confirm('Encontrei dados salvos neste navegador (versão antiga). Enviar para a nuvem?')){s=l;mig=true}}
+if(s){if(s.__mig){mig=true;delete s.__mig}D={...D,...s}}if(mig)save();go('dashboard')};
