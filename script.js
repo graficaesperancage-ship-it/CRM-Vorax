@@ -79,6 +79,17 @@ const save=()=>{clearTimeout(tm);pend++;sync();tm=setTimeout(async()=>{const n=p
 const dl=(n,t,m)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:m}));a.download=n;a.click()};
 const stamp=()=>now().replace(/\D/g,'').replace(/^(\d{8})/,'$1_');
 
+/* ---------- fotos dos negócios: reduz no navegador (~150 KB) antes de enviar ---------- */
+const FOTO_MAX=10,FOTO_LEN=2e5, /* 2e5 caracteres em base64 ≈ 150 KB */
+reduzir=f=>new Promise((ok,no)=>{const u=URL.createObjectURL(f),im=new Image();
+ im.onerror=()=>{URL.revokeObjectURL(u);no(new Error('formato'))};
+ im.onload=()=>{URL.revokeObjectURL(u);let lado=1280,q=.8;
+  for(;;){const k=Math.min(1,lado/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.naturalWidth*k));c.height=Math.max(1,Math.round(im.naturalHeight*k));
+   const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
+   const d=c.toDataURL('image/jpeg',q);if(d.length<=FOTO_LEN||lado<320)return ok(d);
+   if(q>.5)q-=.1;else{lado=Math.round(lado*.8);q=.7}}};
+ im.src=u});
+
 /* ---------- janelas, impressão e desfazer ---------- */
 function dlg(title,body,ok){const d=$('#dlg');d.oninput=null;d.innerHTML=`<form novalidate><h2>${title}</h2><div class="fb">${body}${/class="rq"/.test(body)?'<p class="w hint">* campo obrigatório</p>':''}</div><div class="fa"><button type="button" class="b" id="cx">Cancelar</button><button class="b p">Salvar</button></div></form>`;d.showModal();$('#cx').onclick=()=>d.close();
 d.querySelector('form').onsubmit=e=>{e.preventDefault();const f=e.target;f.querySelectorAll('.er').forEach(x=>x.remove());f.querySelectorAll('[aria-invalid]').forEach(x=>x.removeAttribute('aria-invalid'));
@@ -203,12 +214,29 @@ tabela(){const L=srt(D.negocios.filter(n=>filt(n,S.est)&&this.busca(n)),{t:n=>n.
 quadro(){const L=D.negocios.filter(n=>this.busca(n));st(`${L.length} negócio(s) - Total: ${$$(sum(L))} — arraste os cartões entre as colunas`);
  return`<div class="kb">${STG.map((e,i)=>{const C=L.filter(n=>n.estagio==e).sort((a,b)=>(b.criado_em||'').localeCompare(a.criado_em||''));return`<section class="kcol" data-e="${h(e)}" style="--c:${COR[i]}"><div class="kh"><b>${e}</b><span>${C.length}</span><small>${$$(sum(C))}</small></div><div class="kl">${C.map(n=>`<article class="kc" draggable="true" data-open data-id="${n.id}"><b>${h(n.titulo)}</b><span>${h(cnome(n.contato_id)||'Sem contato')}</span><div><strong>${$$(n.valor)}</strong><small>${fdt(n.previsao_fechamento)}</small></div><select class="mv" data-mv="${n.id}" aria-label="Mover para o estágio">${STG.map(x=>op(x,n.estagio)).join('')}</select></article>`).join('')||'<p class="em">Vazio</p>'}</div></section>`}).join('')}</div>`},
 n(){this.form()},e(id){this.form(g('negocios',id))},
-x(id){const n=g('negocios',id);del(`Negócio “${n?.titulo||''}” excluído.`,['negocios','negocio_produtos','tarefas'],()=>{D.negocios=D.negocios.filter(n=>n.id!=id);D.negocio_produtos=D.negocio_produtos.filter(x=>x.negocio_id!=id);D.tarefas.forEach(t=>t.negocio_id==id&&(t.negocio_id=null))})},
+x(id){const n=g('negocios',id);del(`Negócio “${n?.titulo||''}” excluído.`,['negocios','negocio_produtos','tarefas'],()=>{D.negocios=D.negocios.filter(n=>n.id!=id);D.negocio_produtos=D.negocio_produtos.filter(x=>x.negocio_id!=id);D.tarefas.forEach(t=>t.negocio_id==id&&(t.negocio_id=null))});
+ setTimeout(()=>{if(!g('negocios',id))window.FB.apagarFotos(id).catch(console.error)},9e3)},
 d(id){const n=g('negocios',id);if(!n)return;const c=g('contatos',n.contato_id),it=D.negocio_produtos.filter(x=>x.negocio_id==id),r=(a,b)=>b?`<div class="dr"><span>${a}</span><b>${b}</b></div>`:'';
  modal(h(n.titulo),`<div class="w dd">${r('Estágio',pill(n.estagio))+r('Valor final',$$(n.valor))+r('Valor dos produtos',n.valor_bruto?$$(n.valor_bruto):'')+r('Desconto',n.desconto?dt(n):'')+r('Pagamento',h(n.forma_pagamento))+r('Vendedor',h(n.vendedor))+r('Previsão de fechamento',fdt(n.previsao_fechamento))+r('Criado em',fdt(n.criado_em))}</div>`+
  `<div class="w"><b>Contato</b>${c?`<p>${h(c.nome)}${c.empresa?' — '+h(c.empresa):''}</p><div class="qa">${qa(c)}</div>`:'<p class="mu">Nenhum contato vinculado.</p>'}</div>`+
  `<div class="w"><b>Produtos</b>${it.length?`<table class="dpt">${it.map(x=>`<tr><td>${h(x.nome_produto||'Produto removido')}</td><td>${fq(x.quantidade)} × ${$$(x.preco_unitario)}</td><td class="r">${$$((x.quantidade||0)*(x.preco_unitario||0))}</td></tr>`).join('')}</table>`:'<p class="mu">Nenhum produto vinculado.</p>'}</div>`+
- (n.observacoes?`<div class="w"><b>Observações</b><p style="white-space:pre-wrap;margin:4px 0 0">${h(n.observacoes)}</p></div>`:''),[['x','Excluir'],['p','Imprimir'],['e','Editar']],id)},
+ `<div class="w"><b>Fotos</b><div id="fotos"></div></div>`+
+ (n.observacoes?`<div class="w"><b>Observações</b><p style="white-space:pre-wrap;margin:4px 0 0">${h(n.observacoes)}</p></div>`:''),[['x','Excluir'],['p','Imprimir'],['e','Editar']],id);this.fotos(id)},
+fotos(id){const box=$('#fotos');if(!box)return;let L=[],busy=0,erro='';
+ const draw=()=>{if($('#fotos')!==box)return;box.innerHTML=(erro?`<p class="mu">${h(erro)}</p>`:L.length?`<div class="fg">${L.map(f=>`<figure class="fo"><img src="${f.dados}" alt="Foto do negócio" data-foto="${f.id}"><button type="button" class="b" data-fx="${f.id}" aria-label="Excluir foto">×</button></figure>`).join('')}</div>`:'<p class="mu">Nenhuma foto.</p>')+
+  `<button type="button" class="b" data-fadd${busy||L.length>=FOTO_MAX?' disabled':''}>${busy?'Enviando…':'+ Adicionar foto'}</button><input type="file" accept="image/*" multiple hidden>`};
+ box.innerHTML='<p class="mu">Carregando fotos…</p>';
+ window.FB.fotos(id).then(r=>{L=r;draw()},e=>{console.error(e);erro='Não foi possível carregar as fotos.';draw()});
+ box.onclick=async e=>{const t=e.target;
+  if(t.closest('[data-fadd]'))return box.querySelector('input').click();
+  const x=t.closest('[data-fx]');if(x){if(!confirm('Excluir esta foto?'))return;try{await window.FB.delFoto(x.dataset.fx);L=L.filter(f=>f.id!=x.dataset.fx);draw()}catch(er){console.error(er);toast('Não foi possível excluir a foto.',{err:1})}return}
+  const im=t.closest('img[data-foto]');if(im)im.closest('.fo').classList.toggle('big')};
+ box.onchange=async e=>{if(e.target.type!='file')return;const fs=[...e.target.files];if(!fs.length)return;
+  if(!navigator.onLine)return toast('Sem conexão: conecte-se para enviar fotos.',{err:1});
+  const sobra=FOTO_MAX-L.length;if(fs.length>sobra)toast(`Limite de ${FOTO_MAX} fotos por negócio: só ${Math.max(sobra,0)} serão enviadas.`,{err:1});
+  busy=1;draw();
+  for(const f of fs.slice(0,Math.max(sobra,0))){try{L.push(await window.FB.addFoto(id,await reduzir(f)))}catch(er){console.error(er);toast(er.message=='formato'?`“${f.name}”: formato de imagem não suportado (use JPG ou PNG).`:'Não foi possível enviar uma das fotos. Verifique as regras do Firestore.',{err:1})}}
+  busy=0;draw()}},
 form(n){const v=n||{estagio:STG[0],forma_pagamento:FPG[0],tipo_desconto:'valor'};let it=n?D.negocio_produtos.filter(x=>x.negocio_id==n.id).map(x=>({...x})):[];
  dlg(n?'Editar negócio':'Novo negócio',F('Título do negócio','titulo',v.titulo,'text','required',1)+CB('Contato vinculado','contato_id',v.contato_id,1)+
  `<div class="w pb"><b>Produtos</b><div class="bar"><input id="pq" type="search" placeholder="Buscar produto"><select id="pc">${catOpts().map(c=>op(c)).join('')}</select></div><div class="bar"><select id="ps"></select><input id="pn" type="number" min="0.01" step="any" value="1" style="width:80px" aria-label="Quantidade"><button type="button" class="b" id="pa">+ Adicionar</button></div><table><tbody id="it"></tbody></table></div>`+

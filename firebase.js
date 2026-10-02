@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, getDocs, doc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, getDocs, doc, getDoc, writeBatch, setDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
 const TABS = ["contatos", "negocios", "tarefas", "interacoes", "produtos", "negocio_produtos"];
@@ -73,6 +73,29 @@ window.FB = {
       snap = novo;
     });
     return fila;
+  },
+
+  /* ---------- fotos dos negócios ----------
+     Ficam numa coleção à parte (workspaces/principal/fotos), fora do carregamento inicial:
+     só são lidas quando você abre um negócio. Cada foto já chega reduzida (~150 KB). */
+  async fotos(negId) {
+    const qs = await getDocs(query(collection(db, ...base(), "fotos"), where("negocio_id", "==", Number(negId))));
+    return qs.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.criado_em || "").localeCompare(b.criado_em || ""));
+  },
+  async addFoto(negId, dados) {
+    const ref = doc(collection(db, ...base(), "fotos"));
+    const r = { negocio_id: Number(negId), dados, criado_em: new Date().toISOString() };
+    await setDoc(ref, r);
+    return { id: ref.id, ...r };
+  },
+  delFoto(id) { return deleteDoc(doc(db, ...base(), "fotos", id)); },
+  async apagarFotos(negId) {
+    const qs = await getDocs(query(collection(db, ...base(), "fotos"), where("negocio_id", "==", Number(negId))));
+    for (let i = 0; i < qs.docs.length; i += 450) {
+      const b = writeBatch(db);
+      qs.docs.slice(i, i + 450).forEach(d => b.delete(d.ref));
+      await b.commit();
+    }
   }
 };
 

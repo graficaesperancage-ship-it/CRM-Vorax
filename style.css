@@ -141,3 +141,13 @@ dialog#login{margin:auto;max-width:420px;border-radius:12px}
 #pv{max-width:100%}
 }
 @media(max-width:380px){.cards{grid-template-columns:1fr}.sg{grid-template-columns:104px 1fr 26px}}
+
+/* fotos dos negócios */
+.fg{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin:8px 0}
+.fo{position:relative;margin:0}
+.fo img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid var(--ln);cursor:zoom-in}
+.fo.big{grid-column:1/-1}
+.fo.big img{aspect-ratio:auto;object-fit:contain;max-height:70dvh;cursor:zoom-out}
+.fo>.b{position:absolute;top:4px;right:4px;margin:0;padding:0;width:28px;min-height:28px;flex:none;border:1px solid var(--ln)!important;border-radius:50%!important;background:var(--sf)}
+#fotos .b[data-fadd]{margin-top:4px}
+#fotos .b:disabled{opacity:.6;cursor:default}
