@@ -15,7 +15,8 @@ empresa:'<path d="M4 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16M14 10h5a1 1 0 0 1 1 1
 backup:'<path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3"/>',
 mais:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
 sol:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
-lua:'<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>'},
+lua:'<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>',
+calc:'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 18.5h.01M12 18.5h.01"/>'},
 FABL={dashboard:"Criar novo",contatos:"Novo contato",negocios:"Novo negócio",tarefas:"Nova tarefa",produtos:"Novo produto"};
 let D={contatos:[],negocios:[],tarefas:[],interacoes:[],produtos:[],negocio_produtos:[],empresa:{}},S={},tm,pend=0,bad=0;
 const $=s=>document.querySelector(s),
@@ -111,6 +112,43 @@ cbHide=w=>{w.querySelector('.cl').hidden=true;w.querySelector('[data-cb]').setAt
 cbShow=i=>{const w=i.closest('.cbx'),u=w.querySelector('.cl'),L=cbl(i.value.trim());u.innerHTML=L.length?L.map(c=>`<li role="option" tabindex="-1" data-id="${c.id}"><b>${h(c.nome)}</b><small>${h([c.empresa,ftel(c.telefone)].filter(Boolean).join(' · '))}</small></li>`).join(''):'<li class="no">Nenhum contato encontrado</li>';u.hidden=false;i.setAttribute('aria-expanded','true')},
 cbPick=(w,id)=>{const c=g('contatos',id);w.querySelector('[data-cb]').value=c?c.nome:'';w.querySelector('[type=hidden]').value=c?c.id:'';cbHide(w)};
 
+/* ---------- Calculadora para Adesivos (lógica da planilha DIGITAL.xlsx) ----------
+   Valores-padrão = células da planilha. Os ajustes ficam em D.empresa.calc (sincroniza com a nuvem junto com os dados da empresa). */
+const CDEF={pAds:100,pLona:100,pApl:30,pProt:30,pRec:55,pInst:250,mult:3.4,cPS1:20,cPS2:42,cPVC2:56,cPVC3:40,cPVC5:57,cImaG:55,cImaA:58,cAds:10,cTinta:5,cHora:.7,vel:15,pct:17},
+CPAR=()=>({...CDEF,...(D.empresa?.calc||{})}),
+CAD={l:'',a:'',q:'1',u:ls('crm_cu')||'cm'},
+CMB=[['Sem aplicação','Lona / banner / faixa',['lona']],
+['Sem aplicação','Adesivo (fosco, brilho, transparente, perfurado)',['ads']],
+['Sem aplicação','Só recorte',['imp','rec','aplm']],
+['Com aplicação','Lona ilhós / colada',['lona','apl']],
+['Com aplicação','Lona ilhós / colada + instalação Barreiros',['lona','apl','inst']],
+['Com aplicação','Adesivo + aplicado',['ads','apl']],
+['Com aplicação','Adesivo + aplicado + proteção',['ads','apl','prot']],
+['Com aplicação','Adesivo + aplicado + proteção + PS 2 mm',['ads','apl','prot','ps2']],
+['Com aplicação','Adesivo + aplicado + PS 2 mm',['ads','apl','ps2']],
+['Com aplicação','Adesivo perfurado + aplicado',['ads','apl']],
+['Com aplicação','Adesivo + ímã automotivo',['ads','imaA']],
+['Com aplicação','Adesivo + ímã automotivo + proteção',['ads','imaA','prot']],
+['Com aplicação','Adesivo + ímã de geladeira',['ads','imaG']],
+['Com aplicação','Adesivo + ímã de geladeira + proteção',['ads','imaG','prot']],
+['Com aplicação','Adesivo + aplicado + PS 1 mm',['ads','apl','ps1']],
+['Com aplicação','Adesivo + aplicado + PVC expandido 2 mm',['ads','apl','pvc2']],
+['Com aplicação','Adesivo + aplicado + PVC expandido 3 mm',['ads','apl','pvc3']],
+['Com aplicação','Adesivo + aplicado + PVC expandido 5 mm',['ads','apl','pvc5']]],
+/* componentes de preço: [rótulo, valor, fixo?]; m = m² da peça, ln = metros lineares de ímã (= altura, como na planilha) */
+cit=(m,ln,P)=>({lona:['Lona / banner',m*P.pLona],ads:['Adesivo impresso',m*P.pAds],apl:['Aplicação',m*P.pApl],prot:['Proteção',m*P.pProt],rec:['Recorte',m*P.pRec],
+imp:['Custo de impressão (adesivo + tinta + hora)',m*(P.cAds+P.cTinta)+m/P.vel*P.cHora],aplm:['Aplicação × '+fq(P.mult),m*P.pApl*P.mult],
+ps1:['PS 1 mm (custo × '+fq(P.mult)+')',m*P.cPS1*P.mult],ps2:['PS 2 mm (custo × '+fq(P.mult)+')',m*P.cPS2*P.mult],
+pvc2:['PVC expandido 2 mm (custo × '+fq(P.mult)+')',m*P.cPVC2*P.mult],pvc3:['PVC expandido 3 mm (custo × '+fq(P.mult)+')',m*P.cPVC3*P.mult],pvc5:['PVC expandido 5 mm (custo × '+fq(P.mult)+')',m*P.cPVC5*P.mult],
+imaA:['Ímã automotivo (custo × '+fq(P.mult)+')',P.cImaA*ln*P.mult],imaG:['Ímã de geladeira (custo × '+fq(P.mult)+')',P.cImaG*ln*P.mult],
+inst:['Instalação Barreiros (valor fixo)',P.pInst,1]}),
+ccalc=()=>{const k=CAD.u=='m'?1:.01,l=num(CAD.l)*k,a=num(CAD.a)*k,q=num(CAD.q);if(!(l>0&&a>0&&q>0))return null;
+const P=CPAR(),m=l*a,I=cit(m,a,P);
+return{l,a,q,m,P,rows:CMB.map(([g,n,ks])=>{const p=ks.map(x=>I[x]),u=p.reduce((t,x)=>t+x[1],0),fx=p.reduce((t,x)=>t+(x[2]?x[1]:0),0);return{g,n,p,u,t:(u-fx)*q+fx}})}},
+cn3=x=>x.toLocaleString('pt-BR',{maximumFractionDigits:3}),
+cmin=x=>x<60?x.toLocaleString('pt-BR',{maximumFractionDigits:1})+' min':(x/60).toLocaleString('pt-BR',{maximumFractionDigits:1})+' h',
+cmed=c=>fq(+(c.l*100).toFixed(1))+' × '+fq(+(c.a*100).toFixed(1))+' cm';
+
 /* ---------- abas ---------- */
 const V={
 dashboard:{title:'Dashboard',bar:()=>`<label>Considerar negócio parado após <select data-s="dias">${[7,15,30,60,90].map(x=>op([x,x+' dias'],S.dias)).join('')}</select></label>`,list(){
@@ -204,6 +242,26 @@ form(t){const v=t||{tipo:'Follow-up',status:'Pendente'};dlg(t?'Editar tarefa':'N
 c(id){g('tarefas',id).status='Concluída';commit('Tarefa concluída.',()=>{const t=g('tarefas',id);if(t){t.status='Pendente';commit('Tarefa reaberta.')}})},
 x(id){const t=g('tarefas',id);del(`Tarefa “${t?.titulo||''}” excluída.`,['tarefas'],()=>{D.tarefas=D.tarefas.filter(t=>t.id!=id)})}},
 
+calc:{title:'Calculadora para Adesivos',
+bar:()=>`<button class="b p" data-a="cfg">Preços e custos</button><button class="b" data-a="rst">Restaurar valores da planilha</button>`,
+list(){return`<div class="form">${F('Largura','l',CAD.l,'text','data-calc inputmode="decimal" autocomplete="off" placeholder="ex: 40"')+F('Altura','a',CAD.a,'text','data-calc inputmode="decimal" autocomplete="off" placeholder="ex: 60"')+`<label>Medidas em<select name="u" data-calc>${op(['cm','centímetros (cm)'],CAD.u)+op(['m','metros (m)'],CAD.u)}</select></label>`+F('Quantidade de peças','q',CAD.q,'text','data-calc inputmode="decimal" autocomplete="off"')}</div><div id="cres" style="display:grid;gap:12px;margin-top:14px">${this.res()}</div>`},
+res(){const c=ccalc();if(!c){st('Informe largura, altura e quantidade para calcular.');return'<p class="em">Informe a largura e a altura da peça para ver os valores.</p>'}
+ const P=c.P,mt=c.m*c.q,imp=mt*(P.cAds+P.cTinta)+mt/P.vel*P.cHora,
+ K=[['Área total',cn3(mt)+' m²'],['Custo de impressão',$$(imp)],[`Preço pela margem (custo ÷ ${fq(P.pct)}%)`,$$(imp/(P.pct/100))],['Tempo de impressão',cmin(mt/P.vel*60)]],
+ tb=g=>{const L=c.rows.map((r,i)=>({...r,i})).filter(r=>r.g==g);return T(['Opção','Valor (1 peça)','Total'],L.map(r=>[`<b>${h(r.n)}</b>`,$$(r.u),`<b>${$$(r.t)}</b>`]),'',[1,2],()=>'','tc',j=>`data-open data-id="${L[j].i}"`)};
+ st(`Peça de ${cmed(c)} (${cn3(c.m)} m²) × ${fq(c.q)}`);
+ return`<div class="cards">${K.map(([l,v])=>`<div class="cd"><b>${v}</b><span>${l}</span></div>`).join('')}</div><h2>Sem aplicação</h2>${tb('Sem aplicação')}<h2>Com aplicação</h2>${tb('Com aplicação')}<p class="nt">Toque em uma linha para ver como o valor é formado. A instalação em Barreiros é um valor fixo e não multiplica pela quantidade.</p>`},
+d(i){const c=ccalc(),r=c?.rows[i];if(!r)return;
+ modal(h(r.n),`<div class="w"><p class="mu">Peça de ${cmed(c)} (${cn3(c.m)} m²) · quantidade: ${fq(c.q)}</p><table class="dpt">${r.p.map(x=>`<tr><td>${h(x[0])}</td><td class="r">${$$(x[1])}</td></tr>`).join('')}<tr><td><b>Valor de 1 peça</b></td><td class="r"><b>${$$(r.u)}</b></td></tr></table></div><div class="w tot">Total: ${$$(r.t)}</div>`,[['cp','Copiar valor']],i)},
+cp(i){const c=ccalc(),r=c?.rows[i];if(!r)return;const t=`${r.n} — ${cmed(c)}${c.q!=1?' × '+fq(c.q):''}: ${$$(r.t)}`;(navigator.clipboard?.writeText(t)||Promise.reject()).then(()=>toast('Valor copiado.'),()=>toast('Não foi possível copiar: '+t,{err:1}))},
+cfg(){const P=CPAR(),m=k=>`inputmode="decimal" data-m="brl" placeholder="0,00"`,M=(l,k)=>F(l,k,mny(P[k]),'text',m()),N=(l,k)=>F(l,k,fq(P[k]),'text','inputmode="decimal"');
+ dlg('Preços e custos da calculadora','<h3 class="w">Preços de venda</h3>'+M('Adesivo (R$/m²)','pAds')+M('Lona / banner (R$/m²)','pLona')+M('Aplicação (R$/m²)','pApl')+M('Proteção (R$/m²) — na planilha é igual à aplicação','pProt')+M('Recorte (R$/m²)','pRec')+M('Instalação Barreiros (R$, valor fixo)','pInst')+
+ '<h3 class="w">Materiais — custo, vendido pelo custo × multiplicador</h3>'+N('Multiplicador','mult')+M('PS 1 mm (custo R$/m²)','cPS1')+M('PS 2 mm (custo R$/m²)','cPS2')+M('PVC expandido 2 mm (custo R$/m²)','cPVC2')+M('PVC expandido 3 mm (custo R$/m²)','cPVC3')+M('PVC expandido 5 mm (custo R$/m²)','cPVC5')+M('Ímã de geladeira (custo R$/m linear)','cImaG')+M('Ímã automotivo (custo R$/m linear)','cImaA')+
+ '<h3 class="w">Impressão</h3>'+M('Adesivo — custo (R$/m²)','cAds')+M('Tinta — custo (R$/m²)','cTinta')+M('Hora da impressora (R$/h)','cHora')+N('Velocidade da plotter (m²/h)','vel')+N('Custo sobre o preço de venda (%)','pct'),
+ f=>{const d=fd(f),o={};for(const k of Object.keys(CDEF)){const v=num(d[k]);if(v==null||isNaN(v)||v<0)return ferr(f[k],'Valor inválido.');if((k=='vel'||k=='pct')&&!v)return ferr(f[k],'Informe um valor maior que zero.');o[k]=v}
+ D.empresa={...D.empresa,calc:o};commit('Preços e custos salvos.')})},
+rst(){if(!D.empresa?.calc)return toast('Os preços já estão com os valores da planilha.');del('Valores da planilha restaurados.',['empresa'],()=>{delete D.empresa.calc})}},
+
 empresa:{title:'Empresa',bar:()=>'',
 list(){const e=D.empresa||{};S.logo=undefined;return`<p style="margin:0;color:var(--mu)">Estes dados aparecem no cabeçalho das impressões.</p><div class="form">${F('Nome da empresa *','nome',e.nome,'text','id="en"',1)+F('Endereço','endereco',e.endereco,'text','id="ee"',1)+F('CNPJ','cnpj',mcnpj(e.cnpj||''),'text','id="ec" data-m="cnpj" inputmode="numeric" placeholder="00.000.000/0000-00"')+F('Contato (telefone/e-mail)','contato',e.contato,'text','id="et"')}<label class="w">Logomarca<input type="file" id="lg" accept="image/*"></label><label class="w">Ou endereço (URL) da logomarca<input type="text" id="lu" placeholder="logo.png" value="${h(e.logo&&!e.logo.startsWith('data:')?e.logo:'')}"></label><div class="w"><img id="pv" alt="Logomarca" ${e.logo?`src="${e.logo}"`:'hidden'}></div><div class="w bar"><button class="b p" data-a="sv">Salvar dados da empresa</button><button class="b" data-a="rl">Remover logomarca</button></div></div>`},
 sv(){const n=$('#en').value.trim();if(!n)return ferr($('#en'),'Informe o nome da empresa.');D.empresa={...D.empresa,nome:n,endereco:$('#ee').value.trim(),cnpj:$('#ec').value.trim(),contato:$('#et').value.trim()};{const u=$('#lu').value.trim();if(S.logo!==undefined)D.empresa.logo=S.logo;else if(u)D.empresa.logo=u}commit('Dados da empresa atualizados.')},
@@ -225,7 +283,7 @@ applyTheme=()=>{const t=ls('crm_tema'),r=document.documentElement;t?r.dataset.th
 DO={tema(){ls('crm_tema',isDark()?'light':'dark');applyTheme()},
 fab(){S.tab=='dashboard'?modal('Criar novo',`<div class="w sh">${[['contatos','Novo contato'],['negocios','Novo negócio'],['tarefas','Nova tarefa'],['produtos','Novo produto']].map(([k,l])=>`<button type="button" class="b" data-do="new" data-k="${k}">${ic(k)}${l}</button>`).join('')}</div>`,[]):V[S.tab].n()},
 new(b){V[b.dataset.k].n()},
-more(){modal('Mais',`<div class="w sh">${['produtos','top','empresa','backup'].map(k=>`<button type="button" class="b" data-go="${k}">${ic(k)}${V[k].title}</button>`).join('')}<button type="button" class="b" data-do="tema">${themeLbl()}</button></div>`,[])}};
+more(){modal('Mais',`<div class="w sh">${['produtos','top','calc','empresa','backup'].map(k=>`<button type="button" class="b" data-go="${k}">${ic(k)}${V[k].title}</button>`).join('')}<button type="button" class="b" data-do="tema">${themeLbl()}</button></div>`,[])}};
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',applyTheme);
 
 const render=()=>{const v=V[S.tab],sl=$('.kb')?.scrollLeft;
@@ -252,6 +310,8 @@ document.addEventListener('click',e=>{const t=e.target;
   return V[S.tab][b.dataset.a]?.(+b.dataset.id,b)}
  const r=t.closest('[data-open]');if(r&&!t.closest('a,button,select,input,label'))V[S.tab].d?.(+r.dataset.id)});
 document.addEventListener('input',e=>{const k=e.target.dataset.s;if(!k)return;S[k]=e.target.type=='checkbox'?e.target.checked:e.target.value;if(k=='dias'){DIAS=+S.dias;ls('crm_dias',DIAS)}$('#view').innerHTML=V[S.tab].list()});
+/* calculadora: atualiza só o resultado, sem redesenhar os campos (não perde o foco ao digitar) */
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset?.calc===undefined)return;CAD[t.name]=t.value;if(t.name=='u')ls('crm_cu',t.value);const r=$('#cres');if(r)r.innerHTML=V.calc.res()});
 /* máscaras e limpeza de erro (fase de captura: roda antes dos outros ouvintes) */
 document.addEventListener('input',e=>{const t=e.target;if(t.hasAttribute?.('aria-invalid'))clr(t);const m=MK[t.dataset?.m];if(m){const v=m(t.value);if(v!==t.value)t.value=v}},true);
 document.addEventListener('change',e=>{if(e.target.dataset.wa!==undefined){ls('crm_wa',e.target.value);return toast('Preferência do WhatsApp salva.')}if(e.target.dataset.mv)return mover(+e.target.dataset.mv,e.target.value);if(e.target.id!='lg'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,256/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);const d=c.toDataURL('image/png');S.logo=d;$('#pv').src=d;$('#pv').hidden=false};im.src=r.result};r.readAsDataURL(e.target.files[0])});
