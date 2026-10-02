@@ -114,7 +114,7 @@ cbPick=(w,id)=>{const c=g('contatos',id);w.querySelector('[data-cb]').value=c?c.
 
 /* ---------- Calculadora para Adesivos (lógica da planilha DIGITAL.xlsx) ----------
    Valores-padrão = células da planilha. Os ajustes ficam em D.empresa.calc (sincroniza com a nuvem junto com os dados da empresa). */
-const CDEF={pAds:100,pLona:100,pApl:30,pProt:30,pRec:55,pInst:250,mult:3.4,cPS1:20,cPS2:42,cPVC2:56,cPVC3:40,cPVC5:57,cImaG:55,cImaA:58,cAds:10,cTinta:5,cHora:.7,vel:15,pct:17},
+const CDEF={pAds:100,pLona:100,pApl:30,pProt:30,pRec:55,pInst:250,mult:3.4,cPS1:20,cPS2:42,cPVC2:56,cPVC3:40,cPVC5:57,cImaG:55,cImaA:58,rolo:60,cAds:10,cTinta:5,cHora:.7,vel:15,pct:17},
 CPAR=()=>({...CDEF,...(D.empresa?.calc||{})}),
 CAD={l:'',a:'',q:'1',u:ls('crm_cu')||'cm'},
 CMB=[['Sem aplicação','Lona / banner / faixa',['lona']],
@@ -135,15 +135,17 @@ CMB=[['Sem aplicação','Lona / banner / faixa',['lona']],
 ['Com aplicação','Adesivo + aplicado + PVC expandido 2 mm',['ads','apl','pvc2']],
 ['Com aplicação','Adesivo + aplicado + PVC expandido 3 mm',['ads','apl','pvc3']],
 ['Com aplicação','Adesivo + aplicado + PVC expandido 5 mm',['ads','apl','pvc5']]],
-/* componentes de preço: [rótulo, valor, fixo?]; m = m² da peça, ln = metros lineares de ímã (= altura, como na planilha) */
+/* metros lineares de ímã: o rolo tem largura fixa (rolo, em cm); a peça pode ser girada e, se passar da largura do rolo, usa mais de uma faixa */
+clin=(l,a,P)=>{const r=P.rolo/100,f=(x,y)=>Math.ceil(x/r-1e-9)*y;return Math.min(f(l,a),f(a,l))},
+/* componentes de preço: [rótulo, valor, fixo?]; m = m² da peça, ln = metros lineares de ímã */
 cit=(m,ln,P)=>({lona:['Lona / banner',m*P.pLona],ads:['Adesivo impresso',m*P.pAds],apl:['Aplicação',m*P.pApl],prot:['Proteção',m*P.pProt],rec:['Recorte',m*P.pRec],
 imp:['Custo de impressão (adesivo + tinta + hora)',m*(P.cAds+P.cTinta)+m/P.vel*P.cHora],aplm:['Aplicação × '+fq(P.mult),m*P.pApl*P.mult],
 ps1:['PS 1 mm (custo × '+fq(P.mult)+')',m*P.cPS1*P.mult],ps2:['PS 2 mm (custo × '+fq(P.mult)+')',m*P.cPS2*P.mult],
 pvc2:['PVC expandido 2 mm (custo × '+fq(P.mult)+')',m*P.cPVC2*P.mult],pvc3:['PVC expandido 3 mm (custo × '+fq(P.mult)+')',m*P.cPVC3*P.mult],pvc5:['PVC expandido 5 mm (custo × '+fq(P.mult)+')',m*P.cPVC5*P.mult],
-imaA:['Ímã automotivo (custo × '+fq(P.mult)+')',P.cImaA*ln*P.mult],imaG:['Ímã de geladeira (custo × '+fq(P.mult)+')',P.cImaG*ln*P.mult],
+imaA:['Ímã automotivo: '+fq(+ln.toFixed(2))+' m lineares (custo × '+fq(P.mult)+')',P.cImaA*ln*P.mult],imaG:['Ímã de geladeira: '+fq(+ln.toFixed(2))+' m lineares (custo × '+fq(P.mult)+')',P.cImaG*ln*P.mult],
 inst:['Instalação Barreiros (valor fixo)',P.pInst,1]}),
 ccalc=()=>{const k=CAD.u=='m'?1:.01,l=num(CAD.l)*k,a=num(CAD.a)*k,q=num(CAD.q);if(!(l>0&&a>0&&q>0))return null;
-const P=CPAR(),m=l*a,I=cit(m,a,P);
+const P=CPAR(),m=l*a,I=cit(m,clin(l,a,P),P);
 return{l,a,q,m,P,rows:CMB.map(([g,n,ks])=>{const p=ks.map(x=>I[x]),u=p.reduce((t,x)=>t+x[1],0),fx=p.reduce((t,x)=>t+(x[2]?x[1]:0),0);return{g,n,p,u,t:(u-fx)*q+fx}})}},
 cn3=x=>x.toLocaleString('pt-BR',{maximumFractionDigits:3}),
 cmin=x=>x<60?x.toLocaleString('pt-BR',{maximumFractionDigits:1})+' min':(x/60).toLocaleString('pt-BR',{maximumFractionDigits:1})+' h',
@@ -256,9 +258,9 @@ d(i){const c=ccalc(),r=c?.rows[i];if(!r)return;
 cp(i){const c=ccalc(),r=c?.rows[i];if(!r)return;const t=`${r.n} — ${cmed(c)}${c.q!=1?' × '+fq(c.q):''}: ${$$(r.t)}`;(navigator.clipboard?.writeText(t)||Promise.reject()).then(()=>toast('Valor copiado.'),()=>toast('Não foi possível copiar: '+t,{err:1}))},
 cfg(){const P=CPAR(),m=k=>`inputmode="decimal" data-m="brl" placeholder="0,00"`,M=(l,k)=>F(l,k,mny(P[k]),'text',m()),N=(l,k)=>F(l,k,fq(P[k]),'text','inputmode="decimal"');
  dlg('Preços e custos da calculadora','<h3 class="w">Preços de venda</h3>'+M('Adesivo (R$/m²)','pAds')+M('Lona / banner (R$/m²)','pLona')+M('Aplicação (R$/m²)','pApl')+M('Proteção (R$/m²) — na planilha é igual à aplicação','pProt')+M('Recorte (R$/m²)','pRec')+M('Instalação Barreiros (R$, valor fixo)','pInst')+
- '<h3 class="w">Materiais — custo, vendido pelo custo × multiplicador</h3>'+N('Multiplicador','mult')+M('PS 1 mm (custo R$/m²)','cPS1')+M('PS 2 mm (custo R$/m²)','cPS2')+M('PVC expandido 2 mm (custo R$/m²)','cPVC2')+M('PVC expandido 3 mm (custo R$/m²)','cPVC3')+M('PVC expandido 5 mm (custo R$/m²)','cPVC5')+M('Ímã de geladeira (custo R$/m linear)','cImaG')+M('Ímã automotivo (custo R$/m linear)','cImaA')+
+ '<h3 class="w">Materiais — custo, vendido pelo custo × multiplicador</h3>'+N('Multiplicador','mult')+M('PS 1 mm (custo R$/m²)','cPS1')+M('PS 2 mm (custo R$/m²)','cPS2')+M('PVC expandido 2 mm (custo R$/m²)','cPVC2')+M('PVC expandido 3 mm (custo R$/m²)','cPVC3')+M('PVC expandido 5 mm (custo R$/m²)','cPVC5')+M('Ímã de geladeira (custo R$/m linear)','cImaG')+M('Ímã automotivo (custo R$/m linear)','cImaA')+N('Largura do rolo do ímã (cm)','rolo')+
  '<h3 class="w">Impressão</h3>'+M('Adesivo — custo (R$/m²)','cAds')+M('Tinta — custo (R$/m²)','cTinta')+M('Hora da impressora (R$/h)','cHora')+N('Velocidade da plotter (m²/h)','vel')+N('Custo sobre o preço de venda (%)','pct'),
- f=>{const d=fd(f),o={};for(const k of Object.keys(CDEF)){const v=num(d[k]);if(v==null||isNaN(v)||v<0)return ferr(f[k],'Valor inválido.');if((k=='vel'||k=='pct')&&!v)return ferr(f[k],'Informe um valor maior que zero.');o[k]=v}
+ f=>{const d=fd(f),o={};for(const k of Object.keys(CDEF)){const v=num(d[k]);if(v==null||isNaN(v)||v<0)return ferr(f[k],'Valor inválido.');if((k=='vel'||k=='pct'||k=='rolo')&&!v)return ferr(f[k],'Informe um valor maior que zero.');o[k]=v}
  D.empresa={...D.empresa,calc:o};commit('Preços e custos salvos.')})},
 rst(){if(!D.empresa?.calc)return toast('Os preços já estão com os valores da planilha.');del('Valores da planilha restaurados.',['empresa'],()=>{delete D.empresa.calc})}},
 
