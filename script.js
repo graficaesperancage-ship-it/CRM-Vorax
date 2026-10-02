@@ -16,6 +16,7 @@ backup:'<path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3"/>',
 mais:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
 sol:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
 lua:'<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>',
+cvar:'<path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
 calc:'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 18.5h.01M12 18.5h.01"/>'},
 FABL={dashboard:"Criar novo",contatos:"Novo contato",negocios:"Novo negócio",tarefas:"Nova tarefa",produtos:"Novo produto"};
 let D={contatos:[],negocios:[],tarefas:[],interacoes:[],produtos:[],negocio_produtos:[],empresa:{}},S={},tm,pend=0,bad=0;
@@ -151,6 +152,17 @@ cn3=x=>x.toLocaleString('pt-BR',{maximumFractionDigits:3}),
 cmin=x=>x<60?x.toLocaleString('pt-BR',{maximumFractionDigits:1})+' min':(x/60).toLocaleString('pt-BR',{maximumFractionDigits:1})+' h',
 cmed=c=>fq(+(c.l*100).toFixed(1))+' × '+fq(+(c.a*100).toFixed(1))+' cm';
 
+/* ---------- Calculadora Variada (lógica da planilha INDUSTRIAL.xlsx) ----------
+   Custos somados -> preço = custo × multiplicador; valor mínimo = preço − margem de negociação. Ajustes em D.empresa.cvar. */
+const CVPAP=[['Ofício A4',270/4500],['Couchê A4 90 g',.1],['Couchê A4 170 g',.16],['Adesivo Colacril',.3],['Cartão 180 g',.253],['Supremo 250 g',.34],['Autocopiativo 3ª via',.16],['Papel fotográfico 230 g',.24],['Autocopiativo 1ª via',275/2250],['Autocopiativo 2ª via',300/2250]],
+CVK=[['imp','Impressão'],['pap','Papel'],['lam','Laminação brilho'],['cola','Cola'],['emb','Embalagem'],['fre','Frete'],['iss','Imposto sobre serviço'],['gra','Grampo'],['int','Intercalação'],['ser','Serrilha'],['gui','Guilhotina'],['ref','Refile (estilete)']],
+CVDEF={mk:3.4,mkt:2.3,neg:10,tonerV:48,tonerN:800,grV:6,grN:100,lamMil:190,...Object.fromEntries(CVPAP.map((p,i)=>['pa'+i,p[1]]))},
+CVPAR=()=>({...CVDEF,...(D.empresa?.cvar||{})}),
+CVS={pt:'0',qa:'',qi:'',qg:'',ql:'',ho:0,...Object.fromEntries(CVK.map(([k])=>[k,'']))},
+cvp=x=>(x*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',
+cvc=()=>{const P=CVPAR(),C=CVK.reduce((t,[k])=>t+(num(CVS[k])||0),0);if(!(C>0))return null;
+const f=mk=>{const p=C*mk;return{p,min:p-p*P.neg/100,l:p-C,mg:(p-C)/C}};return{C,P,a:f(P.mk),b:f(P.mkt)}};
+
 /* ---------- abas ---------- */
 const V={
 dashboard:{title:'Dashboard',bar:()=>`<label>Considerar negócio parado após <select data-s="dias">${[7,15,30,60,90].map(x=>op([x,x+' dias'],S.dias)).join('')}</select></label>`,list(){
@@ -264,6 +276,28 @@ cfg(){const P=CPAR(),m=k=>`inputmode="decimal" data-m="brl" placeholder="0,00"`,
  D.empresa={...D.empresa,calc:o};commit('Preços e custos salvos.')})},
 rst(){if(!D.empresa?.calc)return toast('Os preços já estão com os valores da planilha.');del('Valores da planilha restaurados.',['empresa'],()=>{delete D.empresa.calc})}},
 
+cvar:{title:'Calculadora Variada',
+bar:()=>`<button class="b p" data-a="cfg">Tabelas e margens</button><button class="b" data-a="lim">Limpar custos</button><button class="b" data-a="rst">Restaurar valores da planilha</button>`,
+list(){const P=CVPAR(),M=(l,k)=>F(l,k,CVS[k],'text','data-cv data-m="brl" inputmode="decimal" autocomplete="off" placeholder="0,00"'),Q=(l,k)=>F(l,k,CVS[k],'text','data-cv inputmode="decimal" autocomplete="off" placeholder="0"');
+ return`<div class="form"><h3 class="w">Custos do trabalho (R$)</h3>${CVK.map(([k,l])=>M(l,k)).join('')}</div><div id="cvres" style="display:grid;gap:12px;margin-top:14px">${this.res()}</div>
+<details ${CVS.ho?'open':''} style="margin-top:14px"><summary style="cursor:pointer;font-weight:600">Calcular custos a partir das tabelas (opcional)</summary><div class="form" style="margin-top:8px"><label class="w">Tipo de papel<select name="pt" data-cv>${CVPAP.map((p,i)=>op([i,p[0]+' (R$ '+fq(+P['pa'+i].toFixed(4))+' por A4)'],CVS.pt)).join('')}</select></label>${Q('Folhas A4 de papel','qa')+Q('Páginas impressas','qi')+Q('Grampos (unidades)','qg')+Q('Folhas laminadas','ql')}<p class="w hint">Impressão: R$ ${fq(+(P.tonerV/P.tonerN).toFixed(4))} por página · Grampo: R$ ${fq(+(P.grV/P.grN).toFixed(4))} cada · Laminação: R$ ${fq(+(P.lamMil/1000).toFixed(4))} por folha. Os campos Papel, Impressão, Grampo e Laminação acima são substituídos pelo valor calculado (só onde você informou a quantidade).</p><div class="w bar"><button type="button" class="b p" data-a="fill">Preencher os custos acima</button></div></div></details>`},
+res(){const c=cvc();if(!c){st('Informe os custos do trabalho para calcular o preço.');return'<p class="em">Informe os custos do trabalho para ver o preço de venda.</p>'}
+ const{C,P,a,b}=c;st(`Custo total: ${$$(C)}`);
+ return`<div class="cards"><div class="cd"><b>${$$(C)}</b><span>Custo total</span></div><div class="cd"><b>${$$(a.p)}</b><span>Preço — talões e pequenas tiragens</span></div><div class="cd"><b>${$$(b.p)}</b><span>Preço — materiais terceirizados</span></div></div>`+
+ T(['Item',`Talões e pequenas tiragens (custo × ${fq(P.mk)})`,`Materiais terceirizados (custo × ${fq(P.mkt)})`],[['Custo total',$$(C),$$(C)],['Preço de venda',`<b>${$$(a.p)}</b>`,`<b>${$$(b.p)}</b>`],[`Valor mínimo (desconto de até ${fq(P.neg)}%)`,$$(a.min),$$(b.min)],['Lucro na venda',$$(a.l),$$(b.l)],['Margem de lucro sobre o custo',cvp(a.mg),cvp(b.mg)]],'',[1,2],()=>'','tc')+
+ `<p class="nt">Valor mínimo = preço de venda menos a margem de negociação. Os multiplicadores e a margem podem ser ajustados em "Tabelas e margens".</p>`},
+fill(){const P=CVPAR(),q=k=>num(CVS[k]),o={pap:q('qa')*P['pa'+CVS.pt],imp:q('qi')*P.tonerV/P.tonerN,gra:q('qg')*P.grV/P.grN,lam:q('ql')*P.lamMil/1000},src={pap:'qa',imp:'qi',gra:'qg',lam:'ql'};let n=0;
+ for(const k in o)if(q(src[k])>0){CVS[k]=mny(o[k]);n++}
+ if(!n)return toast('Informe ao menos uma quantidade para calcular.',{err:1});CVS.ho=1;render();toast('Custos preenchidos. Você pode ajustar os valores.')},
+lim(){for(const k of Object.keys(CVS))CVS[k]=k=='pt'?'0':k=='ho'?0:'';render()},
+cfg(){const P=CVPAR(),M=(l,k)=>F(l,k,mny(P[k]),'text','inputmode="decimal" data-m="brl" placeholder="0,00"'),N=(l,k)=>F(l,k,fq(+(+P[k]).toFixed(4)),'text','inputmode="decimal"');
+ dlg('Tabelas e margens','<h3 class="w">Multiplicadores e negociação</h3>'+N('Multiplicador — talões e pequenas tiragens','mk')+N('Multiplicador — materiais que terceirizo','mkt')+N('Margem de negociação (%)','neg')+
+ '<h3 class="w">Impressão, grampo e laminação</h3>'+M('Toner (R$)','tonerV')+N('Impressões por toner','tonerN')+M('Grampos: preço do pacote (R$)','grV')+N('Grampos por pacote','grN')+M('Laminação (R$ por 1.000 folhas)','lamMil')+
+ '<h3 class="w">Papéis — custo por folha A4 (R$)</h3>'+CVPAP.map((p,i)=>N(p[0],'pa'+i)).join(''),
+ f=>{const d=fd(f),o={};for(const k of Object.keys(CVDEF)){const v=num(d[k]);if(v==null||isNaN(v)||v<0)return ferr(f[k],'Valor inválido.');if((k=='tonerN'||k=='grN')&&!v)return ferr(f[k],'Informe um valor maior que zero.');if(k=='neg'&&v>100)return ferr(f[k],'Use um valor entre 0 e 100.');o[k]=v}
+ D.empresa={...D.empresa,cvar:o};commit('Tabelas e margens salvas.')})},
+rst(){if(!D.empresa?.cvar)return toast('As tabelas já estão com os valores da planilha.');del('Valores da planilha restaurados.',['empresa'],()=>{delete D.empresa.cvar})}},
+
 empresa:{title:'Empresa',bar:()=>'',
 list(){const e=D.empresa||{};S.logo=undefined;return`<p style="margin:0;color:var(--mu)">Estes dados aparecem no cabeçalho das impressões.</p><div class="form">${F('Nome da empresa *','nome',e.nome,'text','id="en"',1)+F('Endereço','endereco',e.endereco,'text','id="ee"',1)+F('CNPJ','cnpj',mcnpj(e.cnpj||''),'text','id="ec" data-m="cnpj" inputmode="numeric" placeholder="00.000.000/0000-00"')+F('Contato (telefone/e-mail)','contato',e.contato,'text','id="et"')}<label class="w">Logomarca<input type="file" id="lg" accept="image/*"></label><label class="w">Ou endereço (URL) da logomarca<input type="text" id="lu" placeholder="logo.png" value="${h(e.logo&&!e.logo.startsWith('data:')?e.logo:'')}"></label><div class="w"><img id="pv" alt="Logomarca" ${e.logo?`src="${e.logo}"`:'hidden'}></div><div class="w bar"><button class="b p" data-a="sv">Salvar dados da empresa</button><button class="b" data-a="rl">Remover logomarca</button></div></div>`},
 sv(){const n=$('#en').value.trim();if(!n)return ferr($('#en'),'Informe o nome da empresa.');D.empresa={...D.empresa,nome:n,endereco:$('#ee').value.trim(),cnpj:$('#ec').value.trim(),contato:$('#et').value.trim()};{const u=$('#lu').value.trim();if(S.logo!==undefined)D.empresa.logo=S.logo;else if(u)D.empresa.logo=u}commit('Dados da empresa atualizados.')},
@@ -285,7 +319,7 @@ applyTheme=()=>{const t=ls('crm_tema'),r=document.documentElement;t?r.dataset.th
 DO={tema(){ls('crm_tema',isDark()?'light':'dark');applyTheme()},
 fab(){S.tab=='dashboard'?modal('Criar novo',`<div class="w sh">${[['contatos','Novo contato'],['negocios','Novo negócio'],['tarefas','Nova tarefa'],['produtos','Novo produto']].map(([k,l])=>`<button type="button" class="b" data-do="new" data-k="${k}">${ic(k)}${l}</button>`).join('')}</div>`,[]):V[S.tab].n()},
 new(b){V[b.dataset.k].n()},
-more(){modal('Mais',`<div class="w sh">${['produtos','top','calc','empresa','backup'].map(k=>`<button type="button" class="b" data-go="${k}">${ic(k)}${V[k].title}</button>`).join('')}<button type="button" class="b" data-do="tema">${themeLbl()}</button></div>`,[])}};
+more(){modal('Mais',`<div class="w sh">${['produtos','top','calc','cvar','empresa','backup'].map(k=>`<button type="button" class="b" data-go="${k}">${ic(k)}${V[k].title}</button>`).join('')}<button type="button" class="b" data-do="tema">${themeLbl()}</button></div>`,[])}};
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',applyTheme);
 
 const render=()=>{const v=V[S.tab],sl=$('.kb')?.scrollLeft;
@@ -314,6 +348,8 @@ document.addEventListener('click',e=>{const t=e.target;
 document.addEventListener('input',e=>{const k=e.target.dataset.s;if(!k)return;S[k]=e.target.type=='checkbox'?e.target.checked:e.target.value;if(k=='dias'){DIAS=+S.dias;ls('crm_dias',DIAS)}$('#view').innerHTML=V[S.tab].list()});
 /* calculadora: atualiza só o resultado, sem redesenhar os campos (não perde o foco ao digitar) */
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset?.calc===undefined)return;CAD[t.name]=t.value;if(t.name=='u')ls('crm_cu',t.value);const r=$('#cres');if(r)r.innerHTML=V.calc.res()});
+/* calculadora variada: atualiza só o resultado, sem redesenhar os campos */
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset?.cv===undefined)return;CVS[t.name]=t.value;const r=$('#cvres');if(r)r.innerHTML=V.cvar.res()});
 /* máscaras e limpeza de erro (fase de captura: roda antes dos outros ouvintes) */
 document.addEventListener('input',e=>{const t=e.target;if(t.hasAttribute?.('aria-invalid'))clr(t);const m=MK[t.dataset?.m];if(m){const v=m(t.value);if(v!==t.value)t.value=v}},true);
 document.addEventListener('change',e=>{if(e.target.dataset.wa!==undefined){ls('crm_wa',e.target.value);return toast('Preferência do WhatsApp salva.')}if(e.target.dataset.mv)return mover(+e.target.dataset.mv,e.target.value);if(e.target.id!='lg'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,256/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);const d=c.toDataURL('image/png');S.logo=d;$('#pv').src=d;$('#pv').hidden=false};im.src=r.result};r.readAsDataURL(e.target.files[0])});
