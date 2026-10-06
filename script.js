@@ -17,9 +17,11 @@ mais:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle c
 sol:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
 lua:'<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>',
 cvar:'<path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
+pedidos:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h4"/>',
+producao:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
 calc:'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 18.5h.01M12 18.5h.01"/>'},
-FABL={dashboard:"Criar novo",contatos:"Novo contato",negocios:"Novo negócio",tarefas:"Nova tarefa",produtos:"Novo produto"};
-let D={contatos:[],negocios:[],tarefas:[],interacoes:[],produtos:[],negocio_produtos:[],empresa:{}},S={},tm,pend=0,bad=0;
+FABL={dashboard:"Criar novo",contatos:"Novo contato",negocios:"Novo negócio",pedidos:"Novo pedido",tarefas:"Nova tarefa",produtos:"Novo produto"};
+let D={contatos:[],negocios:[],tarefas:[],interacoes:[],produtos:[],negocio_produtos:[],pedidos:[],empresa:{}},S={},tm,pend=0,bad=0;
 const $=s=>document.querySelector(s),
 ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch{}},
 h=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),
@@ -115,7 +117,7 @@ filt=(n,e)=>e=='Todos'||(e=='Em aberto'?ab(n):e=='Ganhos'?REC.includes(n.estagio
 cnome=id=>g('contatos',id)?.nome||'',
 pnomes=n=>D.negocio_produtos.filter(x=>x.negocio_id==n.id).map(x=>(x.nome_produto||'Produto removido')+(x.quantidade!=1?` (x${fq(x.quantidade)})`:'')).join(', '),
 csv=t=>{const r=[];let a=[''],q=0;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){a[a.length-1]+='"';i++}else q=0}else a[a.length-1]+=c}else if(c=='"')q=1;else if(c==','||c==';')a.push('');else if(c=='\n'){r.push(a);a=['']}else if(c!='\r')a[a.length-1]+=c}r.push(a);return r},
-mover=(id,est)=>{const n=g('negocios',id);if(!n||n.estagio==est||!STG.includes(est))return;const o=n.estagio,u=n.atualizado_em;n.estagio=est;n.atualizado_em=now();commit(`“${n.titulo}” movido para ${est}.`,()=>{const x=g('negocios',id);if(x){x.estagio=o;x.atualizado_em=u;commit('Movimentação desfeita.')}})};
+mover=(id,est)=>{const n=g('negocios',id);if(!n||n.estagio==est||!STG.includes(est))return;const o=n.estagio,u=n.atualizado_em;n.estagio=est;n.atualizado_em=now();commit(`“${n.titulo}” movido para ${est}.`,()=>{const x=g('negocios',id);if(x){x.estagio=o;x.atualizado_em=u;commit('Movimentação desfeita.')}});if(est=='Ganho'&&!D.pedidos.some(p=>p.negocio_id==id)&&confirm(`“${n.titulo}” foi ganho! Gerar o pedido agora?`))V.negocios.ped(id)};
 
 /* campo de contato com busca e sugestões */
 const CB=(l,n,v,w)=>{const c=g('contatos',v);return`<div class="cbx ${w?'w':''}"><label for="cb_${n}">${l}</label><input id="cb_${n}" data-cb type="search" autocomplete="off" placeholder="Digite para buscar (nome, empresa ou telefone)" value="${h(c?c.nome:'')}" role="combobox" aria-expanded="false"><input type="hidden" name="${n}" value="${h(c?c.id:'')}"><ul class="cl" role="listbox" hidden></ul></div>`},
@@ -175,12 +177,26 @@ cvc=()=>{const P=CVPAR(),C=CVK.reduce((t,[k])=>t+(num(CVS[k])||0),0);if(!(C>0))r
 const f=mk=>{const p=C*mk;return{p,min:p-p*P.neg/100,l:p-C,mg:(p-C)/C}};return{C,P,a:f(P.mk),b:f(P.mkt)}};
 
 /* ---------- abas ---------- */
+/* ---------- pedidos e produção ---------- */
+const PST=["Aguardando liberação","Liberado para produção","Em produção","Acabamento","Pronto","Entregue","Cancelado"],
+PCOR=["#c9a20a","#0e9fc4","#d9531e","#8a5cd6","#1f9d55","#0b7a62","#8b97a3"],PPROD=PST.slice(1,5),PGS=["Não pago","Sinal pago","Pago"],
+prod=()=>window.FB?.role=='producao',
+ppill=s=>bd(s,PCOR[PST.indexOf(s)]),
+pcli=p=>cnome(p.contato_id)||p.cliente_nome||'Sem cliente',
+pitens=p=>(p.itens||[]).map(x=>(x.nome_produto||'Item')+(x.quantidade!=1?` (x${fq(x.quantidade)})`:'')).join(', '),
+patr=p=>PPROD.slice(0,3).includes(p.status)&&!!p.data_entrega&&p.data_entrega<hoje(),
+pfilt=(p,e)=>e=='Todos'||(e=='Em andamento'?!['Entregue','Cancelado'].includes(p.status):p.status==e),
+pbusca=p=>{const q=(S.q||'').toLowerCase();return!q||[String(p.id),pcli(p),pitens(p),p.observacoes].some(v=>(v||'').toLowerCase().includes(q))},
+/* muda o status de um pedido (com opção de desfazer) */
+mp=(id,est)=>{const p=g('pedidos',id);if(!p||p.status==est||!PST.includes(est))return;const o=p.status,u=p.atualizado_em;p.status=est;p.atualizado_em=now();if(est==PST[1]&&!prod())p.liberado_em=now();
+commit(`Pedido #${id}: ${est}.`,()=>{const x=g('pedidos',id);if(x){x.status=o;x.atualizado_em=u;commit('Mudança desfeita.')}})};
+
 const V={
 dashboard:{title:'Dashboard',bar:()=>`<label>Considerar negócio parado após <select data-s="dias">${[7,15,30,60,90].map(x=>op([x,x+' dias'],S.dias)).join('')}</select></label>`,list(){
  const N=D.negocios,s=a=>a.reduce((t,x)=>t+(x.valor||0),0);
  if(!D.contatos.length&&!N.length&&!D.produtos.length)return`<div class="cd"><b>Nenhum dado ainda</b><p>Importe seus dados na aba Backup (por exemplo, o arquivo crm_dados.json) ou comece cadastrando contatos e produtos.</p><button class="b p" data-go="backup">Ir para Backup</button></div>`;
  const atr=D.tarefas.filter(atras),par=N.filter(parado),
- K=[['Contatos',D.contatos.length,'contatos'],['Negócios',N.length,'negocios'],['Pipeline em aberto',$$(s(N.filter(ab))),'negocios',{est:'Em aberto'}],['Total ganho',$$(s(N.filter(x=>REC.includes(x.estagio)))),'negocios',{est:'Ganhos'}],['Clientes recorrentes',new Set(N.filter(x=>x.estagio=='Cliente Recorrente'&&x.contato_id).map(x=>x.contato_id)).size,'negocios',{est:'Cliente Recorrente'}],['Tarefas pendentes',D.tarefas.filter(x=>x.status=='Pendente').length,'tarefas',{stt:'Pendente'}],['Tarefas atrasadas',atr.length,'tarefas',{stt:'Atrasadas'},atr.length?'al':''],[`Negócios parados (+${DIAS} dias)`,par.length,'negocios',{est:'Parados'},par.length?'al':'']],
+ K=[['Contatos',D.contatos.length,'contatos'],['Negócios',N.length,'negocios'],['Pipeline em aberto',$$(s(N.filter(ab))),'negocios',{est:'Em aberto'}],['Total ganho',$$(s(N.filter(x=>REC.includes(x.estagio)))),'negocios',{est:'Ganhos'}],['Clientes recorrentes',new Set(N.filter(x=>x.estagio=='Cliente Recorrente'&&x.contato_id).map(x=>x.contato_id)).size,'negocios',{est:'Cliente Recorrente'}],['Pedidos na produção',D.pedidos.filter(p=>PPROD.slice(0,3).includes(p.status)).length,'producao'],['Tarefas pendentes',D.tarefas.filter(x=>x.status=='Pendente').length,'tarefas',{stt:'Pendente'}],['Tarefas atrasadas',atr.length,'tarefas',{stt:'Atrasadas'},atr.length?'al':''],[`Negócios parados (+${DIAS} dias)`,par.length,'negocios',{est:'Parados'},par.length?'al':'']],
  M=[];for(let i=5;i>=0;i--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);M.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'))}
  const gm=Object.fromEntries(M.map(m=>[m,0]));N.filter(x=>REC.includes(x.estagio)).forEach(x=>{const m=(x.previsao_fechamento||x.atualizado_em||x.criado_em||'').slice(0,7);if(m in gm)gm[m]+=x.valor||0});
  const mx=Math.max(...Object.values(gm)),lbl=m=>new Date(+m.slice(0,4),+m.slice(5)-1,1).toLocaleDateString('pt-BR',{month:'short'}).replace('.','')+'/'+m.slice(2,4),
@@ -210,7 +226,7 @@ vw(_,b){S.vw=b.dataset.v;ls('crm_vw',S.vw);render()},
 list(){return S.vw=='quadro'?this.quadro():this.tabela()},
 busca(n){const q=(S.q||'').toLowerCase();return!q||[n.titulo,cnome(n.contato_id),pnomes(n)].some(v=>(v||'').toLowerCase().includes(q))},
 tabela(){const L=srt(D.negocios.filter(n=>filt(n,S.est)&&this.busca(n)),{t:n=>n.titulo,v:n=>n.valor||0,s:n=>STG.indexOf(n.estagio),p:n=>n.previsao_fechamento||'',c:n=>n.criado_em||''},{k:'c',d:-1});st(`${L.length} negócio(s) - Total: ${$$(sum(L))}`);
- return T([['Título','t'],['Valor','v'],['Estágio','s'],['Previsão','p'],''],L.map(n=>[`<div class="tt"><b>${h(n.titulo)}</b><small>${h(cnome(n.contato_id)||'Sem contato')}</small></div>`,$$(n.valor),pill(n.estagio),fdt(n.previsao_fechamento)||'-',AC([['e','Editar'],['x','Excluir']],n.id)]),'Nenhum negócio encontrado.',[1],()=>'','nb tc',j=>`data-open data-id="${L[j].id}"`)},
+ return T([['Título','t'],['Valor','v'],['Estágio','s'],['Previsão','p'],''],L.map(n=>[`<div class="tt"><b>${h(n.titulo)}</b><small>${h(cnome(n.contato_id)||'Sem contato')}</small></div>`,$$(n.valor),pill(n.estagio),fdt(n.previsao_fechamento)||'-',AC([['ped','Gerar pedido'],['e','Editar'],['x','Excluir']],n.id)]),'Nenhum negócio encontrado.',[1],()=>'','nb tc',j=>`data-open data-id="${L[j].id}"`)},
 quadro(){const L=D.negocios.filter(n=>this.busca(n));st(`${L.length} negócio(s) - Total: ${$$(sum(L))} — arraste os cartões entre as colunas`);
  return`<div class="kb">${STG.map((e,i)=>{const C=L.filter(n=>n.estagio==e).sort((a,b)=>(b.criado_em||'').localeCompare(a.criado_em||''));return`<section class="kcol" data-e="${h(e)}" style="--c:${COR[i]}"><div class="kh"><b>${e}</b><span>${C.length}</span><small>${$$(sum(C))}</small></div><div class="kl">${C.map(n=>`<article class="kc" draggable="true" data-open data-id="${n.id}"><b>${h(n.titulo)}</b><span>${h(cnome(n.contato_id)||'Sem contato')}</span><div><strong>${$$(n.valor)}</strong><small>${fdt(n.previsao_fechamento)}</small></div><select class="mv" data-mv="${n.id}" aria-label="Mover para o estágio">${STG.map(x=>op(x,n.estagio)).join('')}</select></article>`).join('')||'<p class="em">Vazio</p>'}</div></section>`}).join('')}</div>`},
 n(){this.form()},e(id){this.form(g('negocios',id))},
@@ -221,7 +237,11 @@ d(id){const n=g('negocios',id);if(!n)return;const c=g('contatos',n.contato_id),i
  `<div class="w"><b>Contato</b>${c?`<p>${h(c.nome)}${c.empresa?' — '+h(c.empresa):''}</p><div class="qa">${qa(c)}</div>`:'<p class="mu">Nenhum contato vinculado.</p>'}</div>`+
  `<div class="w"><b>Produtos</b>${it.length?`<table class="dpt">${it.map(x=>`<tr><td>${h(x.nome_produto||'Produto removido')}</td><td>${fq(x.quantidade)} × ${$$(x.preco_unitario)}</td><td class="r">${$$((x.quantidade||0)*(x.preco_unitario||0))}</td></tr>`).join('')}</table>`:'<p class="mu">Nenhum produto vinculado.</p>'}</div>`+
  `<div class="w"><b>Fotos</b><div id="fotos"></div></div>`+
- (n.observacoes?`<div class="w"><b>Observações</b><p style="white-space:pre-wrap;margin:4px 0 0">${h(n.observacoes)}</p></div>`:''),[['x','Excluir'],['p','Imprimir'],['e','Editar']],id);this.fotos(id)},
+ (n.observacoes?`<div class="w"><b>Observações</b><p style="white-space:pre-wrap;margin:4px 0 0">${h(n.observacoes)}</p></div>`:''),[['x','Excluir'],['p','Imprimir'],['ped','Gerar pedido'],['e','Editar']],id);this.fotos(id)},
+ped(id){const n=g('negocios',id);if(!n)return;const ex=D.pedidos.find(p=>p.negocio_id==id);
+ if(ex&&!confirm(`Já existe o pedido #${ex.id} gerado a partir deste negócio. Gerar outro mesmo assim?`))return;
+ D.pedidos.push({id:nid('pedidos'),negocio_id:n.id,contato_id:n.contato_id||null,cliente_nome:cnome(n.contato_id),itens:D.negocio_produtos.filter(x=>x.negocio_id==id).map(x=>({produto_id:x.produto_id,nome_produto:x.nome_produto,quantidade:x.quantidade,preco_unitario:x.preco_unitario})),valor_bruto:n.valor_bruto||0,desconto:n.desconto||0,tipo_desconto:n.tipo_desconto||'valor',valor:n.valor||0,forma_pagamento:n.forma_pagamento||FPG[0],pagamento:PGS[0],data_entrega:'',status:PST[0],observacoes:n.observacoes||'',criado_em:now(),atualizado_em:now()});
+ save();go('pedidos');toast('Pedido gerado. Defina a data de entrega e libere para a produção.')},
 fotos(id){const box=$('#fotos');if(!box)return;let L=[],busy=0,erro='';
  const draw=()=>{if($('#fotos')!==box)return;box.innerHTML=(erro?`<p class="mu">${h(erro)}</p>`:L.length?`<div class="fg">${L.map(f=>`<figure class="fo"><img src="${f.dados}" alt="Foto do negócio" data-foto="${f.id}"><button type="button" class="b" data-fx="${f.id}" aria-label="Excluir foto">×</button></figure>`).join('')}</div>`:'<p class="mu">Nenhuma foto.</p>')+
   `<button type="button" class="b" data-fadd${busy||L.length>=FOTO_MAX?' disabled':''}>${busy?'Enviando…':'+ Adicionar foto'}</button><input type="file" accept="image/*" multiple hidden>`};
@@ -256,6 +276,56 @@ form(n){const v=n||{estagio:STG[0],forma_pagamento:FPG[0],tipo_desconto:'valor'}
  d.oninput=calc;fil();draw();v.valor_bruto?calc():rec()},
 p(id){semEmpresa();const n=g('negocios',id),c=g('contatos',n.contato_id)||{},it=D.negocio_produtos.filter(x=>x.negocio_id==id),kv=(a,b)=>b&&b!='-'?`<tr><th style="width:220px">${a}</th><td>${b}</td></tr>`:'';
  doc('Negócio #'+id,`<p><b style="font-size:19px">Negócio #${n.id}: ${h(n.titulo)}</b></p><p style="color:#777">Criado em ${h(n.criado_em)}</p><h2>Dados do contato / cliente</h2><table>${kv('Nome',h(c.nome))+kv('Empresa',h(c.empresa))+kv('Telefone',h(c.telefone))+kv('E-mail',h(c.email))+kv('Endereço',h(c.endereco))||'<tr><td>Nenhum contato vinculado.</td></tr>'}</table><h2>Produtos</h2><table><tr><th>Produto</th><th>Qtd.</th><th class="r">Preço unit.</th><th class="r">Subtotal</th></tr>${it.map(x=>`<tr><td>${h(x.nome_produto||'Produto removido')}</td><td>${fq(x.quantidade)}</td><td class="r">${$$(x.preco_unitario)}</td><td class="r">${$$((x.quantidade||0)*(x.preco_unitario||0))}</td></tr>`).join('')||'<tr><td colspan="4">Nenhum produto vinculado a este negócio.</td></tr>'}</table><h2>Dados do negócio</h2><table>${kv('Valor do(s) produto(s)',$$(n.valor_bruto))+kv('Desconto',dt(n))+kv('Valor final',`<b>${$$(n.valor)}</b>`)+kv('Forma de pagamento',h(n.forma_pagamento))+kv('Vendedor responsável',h(n.vendedor))+kv('Estágio',h(n.estagio))+kv('Previsão de fechamento',fdt(n.previsao_fechamento))}</table>${n.observacoes?`<h2>Observações</h2><p style="white-space:pre-wrap">${h(n.observacoes)}</p>`:''}`)}},
+
+pedidos:{title:'Pedidos',
+bar:()=>`<input data-s="q" type="search" placeholder="Buscar pedido, cliente ou produto" value="${h(S.q)}" aria-label="Buscar"><select data-s="pst" aria-label="Status">${[['Todos','Todos os status'],['Em andamento','Em andamento'],...PST].map(x=>op(x,S.pst)).join('')}</select><button class="b p" data-a="n">Novo pedido</button>`,
+list(){const L=srt(D.pedidos.filter(p=>pfilt(p,S.pst)&&pbusca(p)),{n:p=>p.id,v:p=>p.valor||0,s:p=>PST.indexOf(p.status),e:p=>p.data_entrega||'9999'},{k:'n',d:-1});st(`${L.length} pedido(s) - Total: ${$$(sum(L))}`);
+ return T([['Pedido','n'],['Valor','v'],['Status','s'],['Entrega','e'],''],L.map(p=>[`<div class="tt"><b>#${p.id} · ${h(pcli(p))}</b><small>${h(pitens(p))||'Sem itens'}</small></div>`,$$(p.valor),ppill(p.status),p.data_entrega?(patr(p)?`<span style="color:var(--rd);font-weight:600">${fdt(p.data_entrega)} (atrasado)</span>`:fdt(p.data_entrega)):'-',AC([...(p.status==PST[0]?[['l','Liberar']]:[]),['e','Editar'],['x','Excluir']],p.id)]),'Nenhum pedido encontrado.',[1],j=>patr(L[j])?'at':'','nb tc',j=>`data-open data-id="${L[j].id}"`)},
+n(){this.form()},e(id){this.form(g('pedidos',id))},
+l(id){mp(id,PST[1])},
+x(id){const p=g('pedidos',id);del(`Pedido #${id} excluído.`,['pedidos'],()=>{D.pedidos=D.pedidos.filter(p=>p.id!=id)})},
+d(id){const p=g('pedidos',id);if(!p)return;const c=g('contatos',p.contato_id),it=p.itens||[],r=(a,b)=>b?`<div class="dr"><span>${a}</span><b>${b}</b></div>`:'';
+ modal(`Pedido #${p.id}`,`<div class="w dd">${r('Status',ppill(p.status))+r('Valor final',$$(p.valor))+r('Valor dos itens',p.valor_bruto?$$(p.valor_bruto):'')+r('Desconto',p.desconto?dt(p):'')+r('Pagamento',h(p.pagamento))+r('Forma de pagamento',h(p.forma_pagamento))+r('Entrega',fdt(p.data_entrega))+r('Criado em',fdt(p.criado_em))+r('Liberado em',fdt(p.liberado_em))}</div>`+
+ `<div class="w"><b>Cliente</b>${c?`<p>${h(c.nome)}${c.empresa?' — '+h(c.empresa):''}</p><div class="qa">${qa(c)}</div>`:'<p class="mu">Nenhum cliente vinculado.</p>'}</div>`+
+ `<div class="w"><b>Itens</b>${it.length?`<table class="dpt">${it.map(x=>`<tr><td>${h(x.nome_produto||'Item')}</td><td>${fq(x.quantidade)} × ${$$(x.preco_unitario)}</td><td class="r">${$$((x.quantidade||0)*(x.preco_unitario||0))}</td></tr>`).join('')}</table>`:'<p class="mu">Nenhum item.</p>'}</div>`+
+ (p.observacoes?`<div class="w"><b>Observações</b><p style="white-space:pre-wrap;margin:4px 0 0">${h(p.observacoes)}</p></div>`:''),[['x','Excluir'],['p','Imprimir'],...(p.status==PST[0]?[['l','Liberar para produção']]:[]),['e','Editar']],id)},
+p(id){semEmpresa();const p=g('pedidos',id);if(!p)return;const c=g('contatos',p.contato_id)||{},it=p.itens||[],kv=(a,b)=>b&&b!='-'?`<tr><th style="width:220px">${a}</th><td>${b}</td></tr>`:'';
+ doc('Pedido #'+id,`<p><b style="font-size:19px">Pedido #${p.id}</b></p><p style="color:#777">Criado em ${h(p.criado_em)}</p><h2>Cliente</h2><table>${kv('Nome',h(c.nome))+kv('Empresa',h(c.empresa))+kv('Telefone',h(c.telefone))+kv('E-mail',h(c.email))+kv('Endereço',h(c.endereco))||'<tr><td>Nenhum cliente vinculado.</td></tr>'}</table><h2>Itens</h2><table><tr><th>Produto</th><th>Qtd.</th><th class="r">Preço unit.</th><th class="r">Subtotal</th></tr>${it.map(x=>`<tr><td>${h(x.nome_produto||'Item')}</td><td>${fq(x.quantidade)}</td><td class="r">${$$(x.preco_unitario)}</td><td class="r">${$$((x.quantidade||0)*(x.preco_unitario||0))}</td></tr>`).join('')||'<tr><td colspan="4">Nenhum item.</td></tr>'}</table><h2>Dados do pedido</h2><table>${kv('Valor dos itens',$$(p.valor_bruto))+kv('Desconto',dt(p))+kv('Valor final',`<b>${$$(p.valor)}</b>`)+kv('Pagamento',h(p.pagamento))+kv('Forma de pagamento',h(p.forma_pagamento))+kv('Entrega',fdt(p.data_entrega))+kv('Status',h(p.status))}</table>${p.observacoes?`<h2>Observações</h2><p style="white-space:pre-wrap">${h(p.observacoes)}</p>`:''}`)},
+form(p){const v=p||{status:PST[0],pagamento:PGS[0],forma_pagamento:FPG[0],tipo_desconto:'valor'};let it=p?(p.itens||[]).map(x=>({...x})):[];
+ dlg(p?`Editar pedido #${p.id}`:'Novo pedido',CB('Cliente (contato)','contato_id',v.contato_id,1)+
+ `<div class="w pb"><b>Itens do pedido</b><div class="bar"><input id="pq" type="search" placeholder="Buscar produto"><select id="pc">${catOpts().map(c=>op(c)).join('')}</select></div><div class="bar"><select id="ps"></select><input id="pn" type="number" min="0.01" step="any" value="1" style="width:80px" aria-label="Quantidade"><input id="pp" type="text" inputmode="decimal" data-m="brl" placeholder="Preço unit." style="width:110px" aria-label="Preço unitário"><button type="button" class="b" id="pa">+ Adicionar</button></div><table><tbody id="it"></tbody></table></div>`+
+ F('Valor dos itens (R$)','valor_bruto',v.valor_bruto?mny(v.valor_bruto):'','text','inputmode="decimal" data-m="brl" placeholder="0,00"')+F('Data de entrega','data_entrega',v.data_entrega,'date')+F('Pagamento','pagamento',v.pagamento,'select',PGS)+F('Forma de pagamento','forma_pagamento',v.forma_pagamento,'select',FPG)+F('Tipo de desconto','tipo_desconto',v.tipo_desconto,'select',[['valor','Valor (R$)'],['percentual','Percentual (%)']])+F('Desconto (0 se não houver)','desconto',v.desconto?mny(v.desconto):'','text','inputmode="decimal" data-m="brl" placeholder="0,00"')+F('Status do pedido','status',v.status,'select',PST,1)+F('Observações (medidas, arte, detalhes para a produção)','observacoes',v.observacoes,'area','',1)+'<div class="w tot" id="vf"></div>',
+ f=>{const d=fd(f),b=num(d.valor_bruto),ds=num(d.desconto);if(isNaN(b))return ferr(f.valor_bruto,'Valor inválido.');if(isNaN(ds))return ferr(f.desconto,'Desconto inválido.');
+  if(!it.length&&!d.observacoes.trim()){toast('Adicione ao menos um item ou descreva o pedido nas observações.',{err:1});return false}
+  const B=b||0,X=ds||0,o={contato_id:d.contato_id?+d.contato_id:null,cliente_nome:cnome(+d.contato_id),itens:it.map(x=>({produto_id:x.produto_id,nome_produto:x.nome_produto,quantidade:x.quantidade,preco_unitario:x.preco_unitario})),valor_bruto:B,desconto:X,tipo_desconto:d.tipo_desconto,valor:Math.max(B-(d.tipo_desconto=='percentual'?B*X/100:X),0),forma_pagamento:d.forma_pagamento,pagamento:d.pagamento,data_entrega:d.data_entrega,status:d.status,observacoes:d.observacoes.trim(),atualizado_em:now()};
+  if(p){if(o.status==PST[1]&&p.status!=PST[1])o.liberado_em=now();Object.assign(p,o)}else{if(o.status==PST[1])o.liberado_em=now();D.pedidos.push({id:nid('pedidos'),negocio_id:null,...o,criado_em:now()})}
+  commit('Pedido salvo.')});
+ const d=$('#dlg'),q=s=>d.querySelector(s),
+ calc=()=>{const b=num(q('[name=valor_bruto]').value)||0,x=num(q('[name=desconto]').value)||0;q('#vf').textContent='Valor final: '+$$(Math.max(b-(q('[name=tipo_desconto]').value=='percentual'?b*x/100:x),0))},
+ rec=()=>{q('[name=valor_bruto]').value=mny(it.reduce((s,x)=>s+x.quantidade*x.preco_unitario,0));calc()},
+ draw=()=>q('#it').innerHTML=it.length?it.map((x,i)=>`<tr><td>${h(x.nome_produto)}</td><td>${fq(x.quantidade)}</td><td class="r">${$$(x.preco_unitario)}</td><td class="r">${$$(x.quantidade*x.preco_unitario)}</td><td><button type="button" class="b" data-r="${i}" aria-label="Remover">×</button></td></tr>`).join(''):'<tr><td class="em">Nenhum item adicionado.</td></tr>',
+ pre=()=>{const x=g('produtos',q('#ps').value);q('#pp').value=x?mny(x.preco_venda||0):''},
+ fil=()=>{const L=prods(q('#pq').value,q('#pc').value);q('#ps').innerHTML=L.map(x=>`<option value="${x.id}">${h(x.nome)} (${$$(x.preco_venda)})</option>`).join('')||'<option value="">Nenhum produto</option>';pre()};
+ q('#pq').oninput=q('#pc').onchange=fil;q('#ps').onchange=pre;
+ q('#pa').onclick=()=>{const x=g('produtos',q('#ps').value),k=num(q('#pn').value),u=num(q('#pp').value);if(!x)return toast('Escolha um produto cadastrado para adicionar.',{err:1});if(!k||isNaN(k)||k<=0)return toast('Quantidade inválida. Informe um número maior que zero.',{err:1});if(isNaN(u))return toast('Preço unitário inválido.',{err:1});
+  it.push({produto_id:x.id,nome_produto:x.nome,quantidade:k,preco_unitario:u==null?(x.preco_venda||0):u});q('#pn').value=1;draw();rec()};
+ q('#it').onclick=e=>{const i=e.target.dataset.r;if(i!=null){it.splice(i,1);draw();rec()}};
+ d.oninput=calc;fil();draw();v.valor_bruto?calc():rec()}},
+
+producao:{title:'Produção',
+bar:()=>`<input data-s="q" type="search" placeholder="Buscar pedido, cliente ou produto" value="${h(S.q)}" aria-label="Buscar"><button type="button" class="b" data-do="atualizar">Atualizar</button>`,
+list(){const L=D.pedidos.filter(p=>PPROD.includes(p.status)&&pbusca(p));st(`${L.filter(p=>p.status!=PST[4]).length} pedido(s) para produzir — arraste os cartões entre as colunas`);
+ const acao={[PST[1]]:['i','Iniciar produção'],[PST[2]]:['a','Enviar para acabamento'],[PST[3]]:['f','Marcar como pronto']};
+ return`<div class="kb">${PPROD.map((e,i)=>{const C=L.filter(p=>p.status==e).sort((a,b)=>(a.data_entrega||'9999').localeCompare(b.data_entrega||'9999')||(a.liberado_em||'').localeCompare(b.liberado_em||''));
+  return`<section class="kcol" data-e="${h(e)}" style="--c:${PCOR[PST.indexOf(e)]}"><div class="kh"><b>${e}</b><span>${C.length}</span></div><div class="kl">${C.map(p=>`<article class="kc${patr(p)?' at':''}" draggable="true" data-open data-id="${p.id}"><b>#${p.id} · ${h(pcli(p))}</b><span>${h(pitens(p))||'Sem itens'}</span><div><small>${p.data_entrega?'Entrega '+fdt(p.data_entrega):'Sem data de entrega'}</small>${patr(p)?'<small style="color:var(--rd);font-weight:600">Atrasado</small>':''}</div>${acao[e]?`<button type="button" class="b" data-a="${acao[e][0]}" data-id="${p.id}">${acao[e][1]}</button>`:''}<select class="mv" data-mv="${p.id}" aria-label="Mover para">${PPROD.map(x=>op(x,p.status)).join('')}</select></article>`).join('')||'<p class="em">Nenhum pedido</p>'}</div></section>`}).join('')}</div>`},
+i(id){mp(id,PST[2])},a(id){mp(id,PST[3])},f(id){mp(id,PST[4])},
+d(id){const p=g('pedidos',id);if(!p)return;const it=p.itens||[],r=(a,b)=>b?`<div class="dr"><span>${a}</span><b>${b}</b></div>`:'';
+ modal(`Pedido #${p.id}`,`<div class="w dd">${r('Cliente',h(pcli(p)))+r('Status',ppill(p.status))+r('Entrega',fdt(p.data_entrega))}</div>`+
+ `<div class="w"><b>Itens para produzir</b>${it.length?`<table class="dpt">${it.map(x=>`<tr><td>${h(x.nome_produto||'Item')}</td><td class="r">${fq(x.quantidade)}</td></tr>`).join('')}</table>`:'<p class="mu">Nenhum item cadastrado — veja as observações.</p>'}</div>`+
+ (p.observacoes?`<div class="w"><b>Observações</b><p style="white-space:pre-wrap;margin:4px 0 0">${h(p.observacoes)}</p></div>`:''),
+ [['p','Imprimir ordem'],...(({[PST[1]]:[['i','Iniciar produção']],[PST[2]]:[['a','Enviar para acabamento']],[PST[3]]:[['f','Marcar como pronto']]})[p.status]||[])],id)},
+p(id){if(!prod())semEmpresa();const p=g('pedidos',id);if(!p)return;const it=p.itens||[];
+ doc('Ordem de produção #'+id,`<p><b style="font-size:19px">Ordem de produção — Pedido #${p.id}</b></p><table><tr><th style="width:160px">Cliente</th><td>${h(pcli(p))}</td></tr><tr><th>Entrega</th><td>${fdt(p.data_entrega)||'-'}</td></tr><tr><th>Status</th><td>${h(p.status)}</td></tr></table><h2>Itens para produzir</h2><table><tr><th>Produto</th><th class="r">Qtd.</th></tr>${it.map(x=>`<tr><td>${h(x.nome_produto||'Item')}</td><td class="r">${fq(x.quantidade)}</td></tr>`).join('')||'<tr><td colspan="2">Nenhum item cadastrado.</td></tr>'}</table>${p.observacoes?`<h2>Observações</h2><p style="white-space:pre-wrap">${h(p.observacoes)}</p>`:''}`)}},
 
 produtos:{title:'Produtos',
 bar:()=>`<input data-s="q" type="search" placeholder="Buscar produto" value="${h(S.q)}" aria-label="Buscar"><select data-s="cat" aria-label="Categoria">${catOpts().map(c=>op(c,S.cat)).join('')}</select><button class="b p" data-a="n">Novo produto</button><button class="b" data-a="imp">Imprimir lista</button>`,
@@ -337,26 +407,30 @@ exp(pre){dl(`${pre=='pre'?'pre_import_backup':'backup_crm'}_${stamp()}.json`,JSO
 imp(){const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=async()=>{let j;try{j=JSON.parse(await i.files[0].text())}catch{return toast('O arquivo selecionado não é um backup válido (.json).',{err:1})}
  if(!Array.isArray(j.contatos)||!Array.isArray(j.negocios))return toast(`Este arquivo não parece ser um backup do ${APP}.`,{err:1});
  if(!confirm(`Importar ${j.contatos.length} contatos, ${j.negocios.length} negócios e ${(j.produtos||[]).length} produtos? Isto substitui todos os dados atuais.`))return;
- this.exp('pre');for(const k of ['contatos','negocios','tarefas','interacoes','produtos','negocio_produtos'])D[k]=Array.isArray(j[k])?j[k]:[];D.empresa=j.empresa||{};commit('Backup importado com sucesso.')};i.click()}}
+ this.exp('pre');for(const k of ['contatos','negocios','tarefas','interacoes','produtos','negocio_produtos','pedidos'])D[k]=Array.isArray(j[k])?j[k]:[];D.empresa=j.empresa||{};commit('Backup importado com sucesso.')};i.click()}}
 };
+
+/* recarrega da nuvem (usado pelo botão Atualizar e, na conta de produção, a cada 45 s) */
+const refresh=async av=>{if(pend)return av&&toast('Aguarde terminar de salvar e tente de novo.',{err:1});try{const s=await window.FB.load();if(!s||s.__mig)return;D={...D,...s};render();av&&toast('Dados atualizados.')}catch(e){console.error(e);av&&toast('Não foi possível atualizar. Verifique a conexão.',{err:1})}};
 
 /* ---------- tema, ações do celular e navegação ---------- */
 const isDark=()=>{const t=ls('crm_tema');return t?t=='dark':matchMedia('(prefers-color-scheme: dark)').matches},
 themeLbl=()=>`${ic(isDark()?'sol':'lua')}<span class="tx">${isDark()?'Tema claro':'Tema escuro'}</span>`,
 applyTheme=()=>{const t=ls('crm_tema'),r=document.documentElement;t?r.dataset.theme=t:delete r.dataset.theme;const b=$('#tema');if(b){b.innerHTML=themeLbl();b.setAttribute('aria-label',isDark()?'Usar tema claro':'Usar tema escuro')}},
 DO={tema(){ls('crm_tema',isDark()?'light':'dark');applyTheme()},
-fab(){S.tab=='dashboard'?modal('Criar novo',`<div class="w sh">${[['contatos','Novo contato'],['negocios','Novo negócio'],['tarefas','Nova tarefa'],['produtos','Novo produto']].map(([k,l])=>`<button type="button" class="b" data-do="new" data-k="${k}">${ic(k)}${l}</button>`).join('')}</div>`,[]):V[S.tab].n()},
+fab(){S.tab=='dashboard'?modal('Criar novo',`<div class="w sh">${[['contatos','Novo contato'],['negocios','Novo negócio'],['pedidos','Novo pedido'],['tarefas','Nova tarefa'],['produtos','Novo produto']].map(([k,l])=>`<button type="button" class="b" data-do="new" data-k="${k}">${ic(k)}${l}</button>`).join('')}</div>`,[]):V[S.tab].n()},
 new(b){V[b.dataset.k].n()},
-more(){modal('Mais',`<div class="w sh">${['produtos','top','calc','cvar','empresa','backup'].map(k=>`<button type="button" class="b" data-go="${k}">${ic(k)}${V[k].title}</button>`).join('')}<button type="button" class="b" data-do="tema">${themeLbl()}</button></div>`,[])}};
+atualizar(){refresh(true)},
+more(){modal('Mais',`<div class="w sh">${['pedidos','producao','produtos','top','calc','cvar','empresa','backup'].map(k=>`<button type="button" class="b" data-go="${k}">${ic(k)}${V[k].title}</button>`).join('')}<button type="button" class="b" data-do="tema">${themeLbl()}</button></div>`,[])}};
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',applyTheme);
 
 const render=()=>{const v=V[S.tab],sl=$('.kb')?.scrollLeft;
-$('#nav').innerHTML=Object.entries(V).map(([k,x])=>`<button type="button" data-go="${k}" class="${k==S.tab?'on':''}"${k==S.tab?' aria-current="page"':''}>${ic(k)}${x.title}</button>`).join('');
-$('#tb').innerHTML=MAIN.map(k=>`<button type="button" data-go="${k}" class="${k==S.tab?'on':''}">${ic(k)}<span>${V[k].title}</span></button>`).join('')+`<button type="button" data-do="more" class="${MAIN.includes(S.tab)?'':'on'}">${ic('mais')}<span>Mais</span></button>`;
+$('#nav').innerHTML=Object.entries(V).filter(([k])=>!prod()||k=='producao').map(([k,x])=>`<button type="button" data-go="${k}" class="${k==S.tab?'on':''}"${k==S.tab?' aria-current="page"':''}>${ic(k)}${x.title}</button>`).join('');
+$('#tb').style.display=prod()?'none':'';$('#tb').innerHTML=MAIN.map(k=>`<button type="button" data-go="${k}" class="${k==S.tab?'on':''}">${ic(k)}<span>${V[k].title}</span></button>`).join('')+`<button type="button" data-do="more" class="${MAIN.includes(S.tab)?'':'on'}">${ic('mais')}<span>Mais</span></button>`;
 const fb=$('#fab');fb.hidden=!FABL[S.tab];fb.textContent='+';fb.setAttribute('aria-label',FABL[S.tab]||'');
 $('#h').textContent=v.title;$('#bar').innerHTML=v.bar();$('#view').innerHTML=v.list();$('#co').textContent=D.empresa?.nome||'Gestão de clientes';{const l=D.empresa?.logo,i=$('#bl');if(l)i.src=l;i.hidden=!l;$('#bi').style.display=l?'none':''}
 if(sl&&$('.kb'))$('.kb').scrollLeft=sl;sync()};
-const go=(t,p={})=>{S={tab:t,q:'',cat:ALL,est:'Todos',stt:'Todas',rec:true,dias:DIAS,vw:ls('crm_vw')||'lista',...p};if(p.est)S.vw='lista';render();scrollTo(0,0)};
+const go=(t,p={})=>{if(prod())t='producao';S={tab:t,q:'',cat:ALL,est:'Todos',stt:'Todas',pst:'Em andamento',rec:true,dias:DIAS,vw:ls('crm_vw')||'lista',...p};if(p.est)S.vw='lista';render();scrollTo(0,0)};
 
 document.addEventListener('click',e=>{const t=e.target;
  /* WhatsApp no computador: vai direto ao WhatsApp Web, sempre na mesma aba (no celular segue o wa.me, que abre o app) */
@@ -380,12 +454,12 @@ document.addEventListener('input',e=>{const t=e.target;if(t.dataset?.calc===unde
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset?.cv===undefined)return;CVS[t.name]=t.value;const r=$('#cvres');if(r)r.innerHTML=V.cvar.res()});
 /* máscaras e limpeza de erro (fase de captura: roda antes dos outros ouvintes) */
 document.addEventListener('input',e=>{const t=e.target;if(t.hasAttribute?.('aria-invalid'))clr(t);const m=MK[t.dataset?.m];if(m){const v=m(t.value);if(v!==t.value)t.value=v}},true);
-document.addEventListener('change',e=>{if(e.target.dataset.wa!==undefined){ls('crm_wa',e.target.value);return toast('Preferência do WhatsApp salva.')}if(e.target.dataset.mv)return mover(+e.target.dataset.mv,e.target.value);if(e.target.id!='lg'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,256/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);const d=c.toDataURL('image/png');S.logo=d;$('#pv').src=d;$('#pv').hidden=false};im.src=r.result};r.readAsDataURL(e.target.files[0])});
+document.addEventListener('change',e=>{if(e.target.dataset.wa!==undefined){ls('crm_wa',e.target.value);return toast('Preferência do WhatsApp salva.')}if(e.target.dataset.mv)return(S.tab=='producao'?mp:mover)(+e.target.dataset.mv,e.target.value);if(e.target.id!='lg'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,256/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);const d=c.toDataURL('image/png');S.logo=d;$('#pv').src=d;$('#pv').hidden=false};im.src=r.result};r.readAsDataURL(e.target.files[0])});
 /* arrastar e soltar no quadro */
 document.addEventListener('dragstart',e=>{const c=e.target.closest?.('.kc');if(!c)return;e.dataTransfer.setData('text/plain',c.dataset.id);e.dataTransfer.effectAllowed='move';c.classList.add('dg')});
 document.addEventListener('dragend',()=>document.querySelectorAll('.dg,.ov').forEach(x=>x.classList.remove('dg','ov')));
 document.addEventListener('dragover',e=>{const c=e.target.closest?.('.kcol');if(!c)return;e.preventDefault();document.querySelectorAll('.ov').forEach(x=>x!=c&&x.classList.remove('ov'));c.classList.add('ov')});
-document.addEventListener('drop',e=>{const c=e.target.closest?.('.kcol');if(!c)return;e.preventDefault();document.querySelectorAll('.dg,.ov').forEach(x=>x.classList.remove('dg','ov'));mover(+e.dataTransfer.getData('text/plain'),c.dataset.e)});
+document.addEventListener('drop',e=>{const c=e.target.closest?.('.kcol');if(!c)return;e.preventDefault();document.querySelectorAll('.dg,.ov').forEach(x=>x.classList.remove('dg','ov'));(S.tab=='producao'?mp:mover)(+e.dataTransfer.getData('text/plain'),c.dataset.e)});
 /* busca de contato com sugestões */
 document.addEventListener('focusin',e=>{const i=e.target;if(i.matches?.('[data-cb]')){i.select();cbShow(i)}});
 document.addEventListener('input',e=>{const i=e.target;if(i.matches?.('[data-cb]')){i.closest('.cbx').querySelector('[type=hidden]').value='';cbShow(i)}});
@@ -399,5 +473,7 @@ document.addEventListener('keydown',e=>{const i=e.target,w=i.closest?.('.cbx');i
 window.boot=async()=>{let s,mig=false;$('#view').innerHTML='<div class="ld" role="status"><i class="sp"></i><span>Carregando seus dados…</span></div>';
 try{s=await window.FB.load()}catch(e){console.error(e);$('#view').innerHTML='<div class="ld col"><p>Não foi possível carregar os dados da nuvem. Verifique a conexão.</p><button type="button" class="b p" onclick="location.reload()">Tentar de novo</button></div>';return}
 if(!s){const l=await loadLocal();if(l&&confirm('Encontrei dados salvos neste navegador (versão antiga). Enviar para a nuvem?')){s=l;mig=true}}
-if(s){if(s.__mig){mig=true;delete s.__mig}D={...D,...s}}if(mig)save();go('dashboard')};
+if(s){if(s.__mig){mig=true;delete s.__mig}D={...D,...s}}if(!prod()){let ch=0;D.pedidos.forEach(p=>{const n=cnome(p.contato_id);if(n&&n!=p.cliente_nome){p.cliente_nome=n;ch=1}});if(ch)mig=true}
+if(mig)save();go(prod()?'producao':'dashboard');
+if(prod())setInterval(()=>{if(document.hidden||$('#dlg').open||document.activeElement?.matches?.('input,select,textarea'))return;refresh()},45e3)};
 applyTheme();

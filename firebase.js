@@ -1,9 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, getDocs, doc, getDoc, writeBatch, setDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, getDocs, doc, getDoc, writeBatch, setDoc, updateDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-const TABS = ["contatos", "negocios", "tarefas", "interacoes", "produtos", "negocio_produtos"];
+const TABS = ["contatos", "negocios", "tarefas", "interacoes", "produtos", "negocio_produtos", "pedidos"];
+// status que a conta de produção enxerga (tem que bater com as regras do Firestore)
+const PRODST = ["Liberado para produção", "Em produção", "Acabamento", "Pronto"];
 const $ = s => document.querySelector(s);
 
 if (firebaseConfig.apiKey.startsWith("COLE")) {
@@ -36,9 +38,31 @@ async function lerTudo(caminho) {
   return { out, snap: sn, vazio };
 }
 
+// conta de produção: lê só os pedidos liberados e grava só o status
+async function carregarProducao() {
+  const col = collection(db, ...base(), "pedidos");
+  const rs = await Promise.all(PRODST.map(s => getDocs(query(col, where("status", "==", s)))));
+  const out = { pedidos: [], empresa: {} };
+  for (const qs of rs) for (const d of qs.docs) { const r = d.data(); snap["pedidos/" + d.id] = str(r); out.pedidos.push(r); }
+  try { const e = await getDoc(doc(db, ...base(), "meta", "empresa")); if (e.exists()) out.empresa = e.data(); } catch {}
+  return out;
+}
+function salvarProducao(D) {
+  fila = fila.then(async () => {
+    for (const r of D.pedidos) {
+      const k = "pedidos/" + r.id, s = str(r);
+      if (snap[k] === s) continue;
+      await updateDoc(doc(db, ...base(), "pedidos", String(r.id)), { status: r.status, atualizado_em: r.atualizado_em });
+      snap[k] = s;
+    }
+  });
+  return fila;
+}
+
 window.FB = {
   async load() {
     snap = {};
+    if (window.FB.role === "producao") return carregarProducao();
     const r = await lerTudo(base());
     if (r.vazio) {
       // primeira vez no espaço compartilhado: traz os dados antigos do próprio usuário, se existirem
@@ -51,6 +75,7 @@ window.FB = {
   },
   // grava só o que mudou (novos/alterados) e apaga o que foi removido
   save(D) {
+    if (window.FB.role === "producao") return salvarProducao(D);
     fila = fila.then(async () => {
       const ops = [], novo = {};
       for (const t of TABS) for (const r of D[t]) {
@@ -119,17 +144,20 @@ onAuthStateChanged(auth, async u => {
   if (!u) { uid = null; $("#login").showModal(); return; }
   uid = u.uid;
   // só admins (documento admins/{uid}) podem usar o sistema
-  let admin = false, erro = "";
+  let admin = false, prod = false, erro = "";
   try { admin = (await getDoc(doc(db, "admins", uid))).exists(); } catch (e) { erro = e.code || String(e); }
-  if (!admin) {
+  // conta de produção (documento producao/{uid}): acesso limitado
+  if (!admin && !erro) { try { prod = (await getDoc(doc(db, "producao", uid))).exists(); } catch (e) { erro = e.code || String(e); } }
+  if (!admin && !prod) {
     const meuUid = uid;
     await signOut(auth);
     $("#le").textContent = erro
       ? "Erro ao verificar permissão (" + erro + "). Publique as regras novas do Firestore."
-      : "Sem permissão: não existe o documento admins/" + meuUid + " no Firestore.";
+      : "Sem permissão: não existe o documento admins/" + meuUid + " (nem producao/" + meuUid + ") no Firestore.";
     $("#login").showModal();
     return;
   }
+  window.FB.role = admin ? "admin" : "producao";
   $("#login").close();
   $("#sair").style.display = "block";
   if (!iniciado) { iniciado = true; await window.boot(); }
