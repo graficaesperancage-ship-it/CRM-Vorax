@@ -184,3 +184,24 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(2px)}
 #fab:hover{transform:scale(1.07);box-shadow:0 8px 26px rgba(34,224,122,.65)}
 #tb button.on{color:var(--br)}
 @media(prefers-reduced-motion:reduce){.b,nav button,.ac button,.cd,.kc,#fab{transition:none}.b:hover,nav button:hover,.ac button:hover,button.cd:hover,#fab:hover{transform:none}}
+
+/* ---------- produção: abas por etapa (só no celular) ---------- */
+.pt,.bk{display:none}
+@media(max-width:760px){
+.pt{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.pt button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:58px;padding:7px 2px 6px;border:1px solid var(--ln);border-top:3px solid var(--c);border-radius:10px;background:var(--sf);color:var(--mu);font:inherit;font-size:11.5px;line-height:1.15;cursor:pointer}
+.pt button b{font-size:19px;line-height:1.1;color:var(--ink)}
+.pt button.on{background:var(--hv);color:var(--ink);font-weight:600;box-shadow:0 0 0 2px var(--c)}
+/* uma etapa por vez, ocupando a largura toda, rolando só a página */
+.kb.pm{display:block;margin:0;padding:0;overflow:visible}
+.kb.pm .kcol{display:none;padding:10px;border-radius:12px}
+.kb.pm .kcol.act{display:block}
+.kb.pm .kl{max-height:none;overflow:visible;gap:10px}
+.kb.pm .kc{padding:14px;gap:7px;font-size:15px;cursor:default}
+.kb.pm .kc>b{font-size:16px;overflow-wrap:anywhere}
+.kb.pm .kc>span{overflow-wrap:anywhere}
+.kb.pm .kc .b{width:100%;min-height:46px;font-size:15px;margin-top:2px}
+.kb.pm .kc .ba{background:var(--bb);border-color:var(--bb);color:#fff;font-weight:600}
+.kb.pm .bk{display:block;background:none}
+.kb.pm .mv{display:none}
+}
