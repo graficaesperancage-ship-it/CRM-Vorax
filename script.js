@@ -366,8 +366,14 @@ p(id){semEmpresa();const n=g('negocios',id),c=g('contatos',n.contato_id)||{},it=
 </div>`)}},
 
 pedidos:{title:'Pedidos',
-bar:()=>`<input data-s="q" type="search" placeholder="Buscar pedido, cliente ou produto" value="${h(S.q)}" aria-label="Buscar"><select data-s="pst" aria-label="Status">${[['Todos','Todos os status'],['Em andamento','Em andamento'],...PST].map(x=>op(x,S.pst)).join('')}</select><button class="b p" data-a="n">Novo pedido</button>`,
-list(){const L=srt(D.pedidos.filter(p=>pfilt(p,S.pst)&&pbusca(p)),{n:p=>p.id,v:p=>p.valor||0,s:p=>PST.indexOf(p.status),e:p=>p.data_entrega||'9999'},{k:'n',d:-1});st(`${L.length} pedido(s) - Total: ${$$(sum(L))}`);
+bar:()=>`<input data-s="q" type="search" placeholder="Buscar pedido, cliente ou produto" value="${h(S.q)}" aria-label="Buscar">${S.pv=='quadro'?'':`<select data-s="pst" aria-label="Status">${[['Todos','Todos os status'],['Em andamento','Em andamento'],...PST].map(x=>op(x,S.pst)).join('')}</select>`}<span class="seg"><button type="button" class="b ${S.pv!='quadro'?'on':''}" data-a="vw" data-v="lista">Lista</button><button type="button" class="b ${S.pv=='quadro'?'on':''}" data-a="vw" data-v="quadro">Quadro</button></span><button class="b p" data-a="n">Novo pedido</button>`,
+vw(_,b){S.pv=b.dataset.v;ls('crm_pv',S.pv);render()},
+list(){return S.pv=='quadro'?this.quadro():this.lista()},
+quadro(){const L=D.pedidos.filter(p=>pbusca(p)),co=matchMedia('(pointer:coarse)').matches,CL=[[PST[0],'Pedidos'],[PST[1],'A fazer']],n=L.filter(p=>CL.some(c=>c[0]==p.status)).length;
+ st(`${n} pedido(s) no quadro — ${co?'use o seletor do cartão para mover':'arraste os cartões entre as colunas'}`);
+ return`<div class="kb">${CL.map(([e,t])=>{const C=L.filter(p=>p.status==e).sort((a,b)=>(a.data_entrega||'9999').localeCompare(b.data_entrega||'9999')||b.id-a.id);
+  return`<section class="kcol" data-e="${h(e)}" style="--c:${PCOR[PST.indexOf(e)]}"><div class="kh"><b>${t}</b><span>${C.length}</span><small>${$$(sum(C))}</small></div><div class="kl">${C.map(p=>`<article class="kc${patr(p)?' at':''}" draggable="${co?'false':'true'}" data-open data-id="${p.id}"><b>#${p.id} · ${h(pcli(p))}</b><span>${h(pitens(p))||'Sem itens'}</span><div><strong>${$$(p.valor)}</strong><small>${p.data_entrega?'Entrega '+fdt(p.data_entrega):'Sem data de entrega'}</small></div>${patr(p)?'<small style="color:var(--rd);font-weight:600">Atrasado</small>':''}<select class="mv" data-mv="${p.id}" aria-label="Mover para">${CL.map(([v,l])=>`<option value="${h(v)}"${v==p.status?' selected':''}>${l}</option>`).join('')}</select></article>`).join('')||'<p class="em">Nenhum pedido</p>'}</div></section>`}).join('')}</div>`},
+lista(){const L=srt(D.pedidos.filter(p=>pfilt(p,S.pst)&&pbusca(p)),{n:p=>p.id,v:p=>p.valor||0,s:p=>PST.indexOf(p.status),e:p=>p.data_entrega||'9999'},{k:'n',d:-1});st(`${L.length} pedido(s) - Total: ${$$(sum(L))}`);
  return T([['Pedido','n'],['Valor','v'],['Status','s'],['Entrega','e'],''],L.map(p=>[`<div class="tt"><b>#${p.id} · ${h(pcli(p))}</b><small>${h(pitens(p))||'Sem itens'}</small></div>`,$$(p.valor),ppill(p.status),p.data_entrega?(patr(p)?`<span style="color:var(--rd);font-weight:600">${fdt(p.data_entrega)} (atrasado)</span>`:fdt(p.data_entrega)):'-',AC([...(p.status==PST[0]?[['l','Liberar']]:[]),['e','Editar'],['x','Excluir']],p.id)]),'Nenhum pedido encontrado.',[1],j=>patr(L[j])?'at':'','nb tc',j=>`data-open data-id="${L[j].id}"`)},
 n(){this.form()},e(id){this.form(g('pedidos',id))},
 l(id){mp(id,PST[1])},
@@ -523,7 +529,7 @@ $('#tb').style.display=prod()?'none':'';$('#tb').innerHTML=MAIN.map(k=>`<button 
 const fb=$('#fab');fb.hidden=!FABL[S.tab];fb.textContent='+';fb.setAttribute('aria-label',FABL[S.tab]||'');
 $('#h').textContent=v.title;$('#bar').innerHTML=v.bar();$('#view').innerHTML=v.list();$('#co').textContent=D.empresa?.nome||'Gestão de clientes';{const l=D.empresa?.logo,i=$('#bl');if(l)i.src=l;i.hidden=!l;$('#bi').style.display=l?'none':''}
 if(sl&&$('.kb'))$('.kb').scrollLeft=sl;sync()};
-const go=(t,p={})=>{if(prod())t='producao';S={tab:t,q:'',cat:ALL,est:'Todos',stt:'Todas',pst:'Em andamento',rec:true,dias:DIAS,vw:ls('crm_vw')||'lista',...p};if(p.est)S.vw='lista';render();scrollTo(0,0)};
+const go=(t,p={})=>{if(prod())t='producao';S={tab:t,q:'',cat:ALL,est:'Todos',stt:'Todas',pst:'Em andamento',rec:true,dias:DIAS,vw:ls('crm_vw')||'lista',pv:ls('crm_pv')||'lista',...p};if(p.est)S.vw='lista';render();scrollTo(0,0)};
 
 document.addEventListener('click',e=>{const t=e.target;
  /* WhatsApp no computador: vai direto ao WhatsApp Web, sempre na mesma aba (no celular segue o wa.me, que abre o app) */
@@ -547,12 +553,12 @@ document.addEventListener('input',e=>{const t=e.target;if(t.dataset?.calc===unde
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset?.cv===undefined)return;CVS[t.name]=t.value;const r=$('#cvres');if(r)r.innerHTML=V.cvar.res()});
 /* máscaras e limpeza de erro (fase de captura: roda antes dos outros ouvintes) */
 document.addEventListener('input',e=>{const t=e.target;if(t.hasAttribute?.('aria-invalid'))clr(t);const m=MK[t.dataset?.m];if(m){const v=m(t.value);if(v!==t.value)t.value=v}},true);
-document.addEventListener('change',e=>{if(e.target.dataset.wa!==undefined){ls('crm_wa',e.target.value);return toast('Preferência do WhatsApp salva.')}if(e.target.dataset.mv)return(S.tab=='producao'?mp:mover)(+e.target.dataset.mv,e.target.value);if(e.target.id!='lg'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,256/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);const d=c.toDataURL('image/png');S.logo=d;$('#pv').src=d;$('#pv').hidden=false};im.src=r.result};r.readAsDataURL(e.target.files[0])});
+document.addEventListener('change',e=>{if(e.target.dataset.wa!==undefined){ls('crm_wa',e.target.value);return toast('Preferência do WhatsApp salva.')}if(e.target.dataset.mv)return(S.tab=='producao'||S.tab=='pedidos'?mp:mover)(+e.target.dataset.mv,e.target.value);if(e.target.id!='lg'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,256/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);const d=c.toDataURL('image/png');S.logo=d;$('#pv').src=d;$('#pv').hidden=false};im.src=r.result};r.readAsDataURL(e.target.files[0])});
 /* arrastar e soltar no quadro */
 document.addEventListener('dragstart',e=>{const c=e.target.closest?.('.kc');if(!c)return;e.dataTransfer.setData('text/plain',c.dataset.id);e.dataTransfer.effectAllowed='move';c.classList.add('dg')});
 document.addEventListener('dragend',()=>document.querySelectorAll('.dg,.ov').forEach(x=>x.classList.remove('dg','ov')));
 document.addEventListener('dragover',e=>{const c=e.target.closest?.('.kcol');if(!c)return;e.preventDefault();document.querySelectorAll('.ov').forEach(x=>x!=c&&x.classList.remove('ov'));c.classList.add('ov')});
-document.addEventListener('drop',e=>{const c=e.target.closest?.('.kcol');if(!c)return;e.preventDefault();document.querySelectorAll('.dg,.ov').forEach(x=>x.classList.remove('dg','ov'));(S.tab=='producao'?mp:mover)(+e.dataTransfer.getData('text/plain'),c.dataset.e)});
+document.addEventListener('drop',e=>{const c=e.target.closest?.('.kcol');if(!c)return;e.preventDefault();document.querySelectorAll('.dg,.ov').forEach(x=>x.classList.remove('dg','ov'));(S.tab=='producao'||S.tab=='pedidos'?mp:mover)(+e.dataTransfer.getData('text/plain'),c.dataset.e)});
 /* busca de contato com sugestões */
 document.addEventListener('focusin',e=>{const i=e.target;if(i.matches?.('[data-cb]')){i.select();cbShow(i)}});
 document.addEventListener('input',e=>{const i=e.target;if(i.matches?.('[data-cb]')){i.closest('.cbx').querySelector('[type=hidden]').value='';cbShow(i)}});
