@@ -92,6 +92,22 @@ reduzir=f=>new Promise((ok,no)=>{const u=URL.createObjectURL(f),im=new Image();
    if(q>.5)q-=.1;else{lado=Math.round(lado*.8);q=.7}}};
  im.src=u});
 
+function galeria(id,campo,alt,ed){const box=$('#fotos');if(!box)return;let L=[],busy=0,erro='';
+ const draw=()=>{if($('#fotos')!==box)return;box.innerHTML=(erro?`<p class="mu">${h(erro)}</p>`:L.length?`<div class="fg">${L.map(f=>`<figure class="fo"><img src="${f.dados}" alt="${alt}" data-foto="${f.id}">${ed?`<button type="button" class="b" data-fx="${f.id}" aria-label="Excluir foto">×</button>`:''}</figure>`).join('')}</div>`:'<p class="mu">Nenhuma foto.</p>')+
+  (ed?`<button type="button" class="b" data-fadd${busy||L.length>=FOTO_MAX?' disabled':''}>${busy?'Enviando…':'+ Adicionar foto'}</button><input type="file" accept="image/*" multiple hidden>`:'')};
+ box.innerHTML='<p class="mu">Carregando fotos…</p>';
+ window.FB.fotos(id,campo).then(r=>{L=r;draw()},e=>{console.error(e);erro='Não foi possível carregar as fotos.';draw()});
+ box.onclick=async e=>{const t=e.target;
+  if(t.closest('[data-fadd]'))return box.querySelector('input').click();
+  const x=t.closest('[data-fx]');if(x){if(!confirm('Excluir esta foto?'))return;try{await window.FB.delFoto(x.dataset.fx);L=L.filter(f=>f.id!=x.dataset.fx);draw()}catch(er){console.error(er);toast('Não foi possível excluir a foto.',{err:1})}return}
+  const im=t.closest('img[data-foto]');if(im)im.closest('.fo').classList.toggle('big')};
+ box.onchange=async e=>{if(e.target.type!='file')return;const fs=[...e.target.files];if(!fs.length)return;
+  if(!navigator.onLine)return toast('Sem conexão: conecte-se para enviar fotos.',{err:1});
+  const sobra=FOTO_MAX-L.length;if(fs.length>sobra)toast(`Limite de ${FOTO_MAX} fotos por item: só ${Math.max(sobra,0)} serão enviadas.`,{err:1});
+  busy=1;draw();
+  for(const f of fs.slice(0,Math.max(sobra,0))){try{L.push(await window.FB.addFoto(id,await reduzir(f),campo))}catch(er){console.error(er);toast(er.message=='formato'?`“${f.name}”: formato de imagem não suportado (use JPG ou PNG).`:'Não foi possível enviar uma das fotos. Verifique as regras do Firestore.',{err:1})}}
+  busy=0;draw()}}
+
 /* ---------- janelas, impressão e desfazer ---------- */
 function dlg(title,body,ok){const d=$('#dlg');d.oninput=null;d.innerHTML=`<form novalidate><h2>${title}</h2><div class="fb">${body}${/class="rq"/.test(body)?'<p class="w hint">* campo obrigatório</p>':''}</div><div class="fa"><button type="button" class="b" id="cx">Cancelar</button><button class="b p">Salvar</button></div></form>`;d.showModal();$('#cx').onclick=()=>d.close();
 d.querySelector('form').onsubmit=e=>{e.preventDefault();const f=e.target;f.querySelectorAll('.er').forEach(x=>x.remove());f.querySelectorAll('[aria-invalid]').forEach(x=>x.removeAttribute('aria-invalid'));
@@ -311,21 +327,7 @@ ped(id){const n=g('negocios',id);if(!n)return;const ex=D.pedidos.find(p=>p.negoc
  if(ex&&!confirm(`Já existe o pedido #${ex.id} gerado a partir deste negócio. Gerar outro mesmo assim?`))return;
  D.pedidos.push({id:nid('pedidos'),negocio_id:n.id,contato_id:n.contato_id||null,cliente_nome:cnome(n.contato_id),itens:D.negocio_produtos.filter(x=>x.negocio_id==id).map(x=>({produto_id:x.produto_id,nome_produto:x.nome_produto,quantidade:x.quantidade,preco_unitario:x.preco_unitario})),valor_bruto:n.valor_bruto||0,desconto:n.desconto||0,tipo_desconto:n.tipo_desconto||'valor',valor:n.valor||0,forma_pagamento:n.forma_pagamento||FPG[0],pagamento:PGS[0],data_entrega:'',status:PST[0],observacoes:n.observacoes||'',criado_em:now(),atualizado_em:now()});
  save();go('pedidos');toast('Pedido gerado. Defina a data de entrega e libere para a produção.')},
-fotos(id){const box=$('#fotos');if(!box)return;let L=[],busy=0,erro='';
- const draw=()=>{if($('#fotos')!==box)return;box.innerHTML=(erro?`<p class="mu">${h(erro)}</p>`:L.length?`<div class="fg">${L.map(f=>`<figure class="fo"><img src="${f.dados}" alt="Foto do negócio" data-foto="${f.id}"><button type="button" class="b" data-fx="${f.id}" aria-label="Excluir foto">×</button></figure>`).join('')}</div>`:'<p class="mu">Nenhuma foto.</p>')+
-  `<button type="button" class="b" data-fadd${busy||L.length>=FOTO_MAX?' disabled':''}>${busy?'Enviando…':'+ Adicionar foto'}</button><input type="file" accept="image/*" multiple hidden>`};
- box.innerHTML='<p class="mu">Carregando fotos…</p>';
- window.FB.fotos(id).then(r=>{L=r;draw()},e=>{console.error(e);erro='Não foi possível carregar as fotos.';draw()});
- box.onclick=async e=>{const t=e.target;
-  if(t.closest('[data-fadd]'))return box.querySelector('input').click();
-  const x=t.closest('[data-fx]');if(x){if(!confirm('Excluir esta foto?'))return;try{await window.FB.delFoto(x.dataset.fx);L=L.filter(f=>f.id!=x.dataset.fx);draw()}catch(er){console.error(er);toast('Não foi possível excluir a foto.',{err:1})}return}
-  const im=t.closest('img[data-foto]');if(im)im.closest('.fo').classList.toggle('big')};
- box.onchange=async e=>{if(e.target.type!='file')return;const fs=[...e.target.files];if(!fs.length)return;
-  if(!navigator.onLine)return toast('Sem conexão: conecte-se para enviar fotos.',{err:1});
-  const sobra=FOTO_MAX-L.length;if(fs.length>sobra)toast(`Limite de ${FOTO_MAX} fotos por negócio: só ${Math.max(sobra,0)} serão enviadas.`,{err:1});
-  busy=1;draw();
-  for(const f of fs.slice(0,Math.max(sobra,0))){try{L.push(await window.FB.addFoto(id,await reduzir(f)))}catch(er){console.error(er);toast(er.message=='formato'?`“${f.name}”: formato de imagem não suportado (use JPG ou PNG).`:'Não foi possível enviar uma das fotos. Verifique as regras do Firestore.',{err:1})}}
-  busy=0;draw()}},
+fotos(id){galeria(id,'negocio_id','Foto do negócio',1)},
 form(n){const v=n||{estagio:STG[0],forma_pagamento:FPG[0],tipo_desconto:'valor'};let it=n?D.negocio_produtos.filter(x=>x.negocio_id==n.id).map(x=>({...x})):[];
  dlg(n?'Editar negócio':'Novo negócio',F('Título do negócio','titulo',v.titulo,'text','required',1)+CB('Contato vinculado','contato_id',v.contato_id,1)+
  `<div class="w pb"><b>Produtos</b><div class="bar"><input id="pq" type="search" placeholder="Buscar produto"><select id="pc">${catOpts().map(c=>op(c)).join('')}</select></div><div class="bar"><select id="ps"></select><input id="pn" type="number" min="0.01" step="any" value="1" style="width:80px" aria-label="Quantidade"><button type="button" class="b" id="pa">+ Adicionar</button></div><table><tbody id="it"></tbody></table></div>`+
@@ -369,12 +371,14 @@ list(){const L=srt(D.pedidos.filter(p=>pfilt(p,S.pst)&&pbusca(p)),{n:p=>p.id,v:p
  return T([['Pedido','n'],['Valor','v'],['Status','s'],['Entrega','e'],''],L.map(p=>[`<div class="tt"><b>#${p.id} · ${h(pcli(p))}</b><small>${h(pitens(p))||'Sem itens'}</small></div>`,$$(p.valor),ppill(p.status),p.data_entrega?(patr(p)?`<span style="color:var(--rd);font-weight:600">${fdt(p.data_entrega)} (atrasado)</span>`:fdt(p.data_entrega)):'-',AC([...(p.status==PST[0]?[['l','Liberar']]:[]),['e','Editar'],['x','Excluir']],p.id)]),'Nenhum pedido encontrado.',[1],j=>patr(L[j])?'at':'','nb tc',j=>`data-open data-id="${L[j].id}"`)},
 n(){this.form()},e(id){this.form(g('pedidos',id))},
 l(id){mp(id,PST[1])},
-x(id){const p=g('pedidos',id);del(`Pedido #${id} excluído.`,['pedidos'],()=>{D.pedidos=D.pedidos.filter(p=>p.id!=id)})},
+x(id){const p=g('pedidos',id);del(`Pedido #${id} excluído.`,['pedidos'],()=>{D.pedidos=D.pedidos.filter(p=>p.id!=id)});
+ setTimeout(()=>{if(!g('pedidos',id))window.FB.apagarFotos(id,'pedido_id').catch(console.error)},9e3)},
 d(id){const p=g('pedidos',id);if(!p)return;const c=g('contatos',p.contato_id),it=p.itens||[],r=(a,b)=>b?`<div class="dr"><span>${a}</span><b>${b}</b></div>`:'';
  modal(`Pedido #${p.id}`,`<div class="w dd">${r('Status',ppill(p.status))+r('Valor final',$$(p.valor))+r('Valor dos itens',p.valor_bruto?$$(p.valor_bruto):'')+r('Desconto',p.desconto?dt(p):'')+r('Pagamento',h(p.pagamento))+r('Forma de pagamento',h(p.forma_pagamento))+r('Entrega',fdt(p.data_entrega))+r('Criado em',fdt(p.criado_em))+r('Liberado em',fdt(p.liberado_em))}</div>`+
  `<div class="w"><b>Cliente</b>${c?`<p>${h(c.nome)}${c.empresa?' — '+h(c.empresa):''}</p><div class="qa">${qa(c)}</div>`:'<p class="mu">Nenhum cliente vinculado.</p>'}</div>`+
  `<div class="w"><b>Itens</b>${it.length?`<table class="dpt">${it.map(x=>`<tr><td>${h(x.nome_produto||'Item')}</td><td>${fq(x.quantidade)} × ${$$(x.preco_unitario)}</td><td class="r">${$$((x.quantidade||0)*(x.preco_unitario||0))}</td></tr>`).join('')}</table>`:'<p class="mu">Nenhum item.</p>'}</div>`+
- (p.observacoes?`<div class="w"><b>Observações</b><p style="white-space:pre-wrap;margin:4px 0 0">${h(p.observacoes)}</p></div>`:''),[['x','Excluir'],['p','Imprimir'],...(p.status==PST[0]?[['l','Liberar para produção']]:[]),['e','Editar']],id)},
+ `<div class="w"><b>Fotos</b><div id="fotos"></div></div>`+
+ (p.observacoes?`<div class="w"><b>Observações</b><p style="white-space:pre-wrap;margin:4px 0 0">${h(p.observacoes)}</p></div>`:''),[['x','Excluir'],['p','Imprimir'],...(p.status==PST[0]?[['l','Liberar para produção']]:[]),['e','Editar']],id);galeria(id,'pedido_id','Foto do pedido',1)},
 p(id){semEmpresa();const p=g('pedidos',id);if(!p)return;const c=g('contatos',p.contato_id)||{},it=p.itens||[],kv=(a,b)=>b&&b!='-'?`<tr><th style="width:220px">${a}</th><td>${b}</td></tr>`:'';
  doc('Pedido #'+id,`<p><b style="font-size:19px">Pedido #${p.id}</b></p><p style="color:#777">Criado em ${h(p.criado_em)}</p><h2>Cliente</h2><table>${kv('Nome',h(c.nome))+kv('Empresa',h(c.empresa))+kv('Telefone',h(c.telefone))+kv('E-mail',h(c.email))+kv('Endereço',h(c.endereco))||'<tr><td>Nenhum cliente vinculado.</td></tr>'}</table><h2>Itens</h2><table><tr><th>Produto</th><th>Qtd.</th><th class="r">Preço unit.</th><th class="r">Subtotal</th></tr>${it.map(x=>`<tr><td>${h(x.nome_produto||'Item')}</td><td>${fq(x.quantidade)}</td><td class="r">${$$(x.preco_unitario)}</td><td class="r">${$$((x.quantidade||0)*(x.preco_unitario||0))}</td></tr>`).join('')||'<tr><td colspan="4">Nenhum item.</td></tr>'}</table><h2>Dados do pedido</h2><table>${kv('Valor dos itens',$$(p.valor_bruto))+kv('Desconto',dt(p))+kv('Valor final',`<b>${$$(p.valor)}</b>`)+kv('Pagamento',h(p.pagamento))+kv('Forma de pagamento',h(p.forma_pagamento))+kv('Entrega',fdt(p.data_entrega))+kv('Status',h(p.status))}</table>${p.observacoes?`<h2>Observações</h2><p style="white-space:pre-wrap">${h(p.observacoes)}</p>`:''}`)},
 form(p){const v=p||{status:PST[0],pagamento:PGS[0],forma_pagamento:FPG[0],tipo_desconto:'valor'};let it=p?(p.itens||[]).map(x=>({...x})):[];
@@ -409,8 +413,9 @@ i(id){mp(id,PST[2])},a(id){mp(id,PST[3])},f(id){mp(id,PST[4])},v(id){const p=g('
 d(id){const p=g('pedidos',id);if(!p)return;const it=p.itens||[],r=(a,b)=>b?`<div class="dr"><span>${a}</span><b>${b}</b></div>`:'';
  modal(`Pedido #${p.id}`,`<div class="w dd">${r('Cliente',h(pcli(p)))+r('Status',ppill(p.status))+r('Entrega',fdt(p.data_entrega))}</div>`+
  `<div class="w"><b>Itens para produzir</b>${it.length?`<table class="dpt">${it.map(x=>`<tr><td>${h(x.nome_produto||'Item')}</td><td class="r">${fq(x.quantidade)}</td></tr>`).join('')}</table>`:'<p class="mu">Nenhum item cadastrado — veja as observações.</p>'}</div>`+
+ `<div class="w"><b>Fotos</b><div id="fotos"></div></div>`+
  (p.observacoes?`<div class="w"><b>Observações</b><p style="white-space:pre-wrap;margin:4px 0 0">${h(p.observacoes)}</p></div>`:''),
- [['p','Imprimir ordem'],...(({[PST[1]]:[['i','Iniciar produção']],[PST[2]]:[['a','Enviar para acabamento']],[PST[3]]:[['f','Marcar como pronto']]})[p.status]||[])],id)},
+ [['p','Imprimir ordem'],...(({[PST[1]]:[['i','Iniciar produção']],[PST[2]]:[['a','Enviar para acabamento']],[PST[3]]:[['f','Marcar como pronto']]})[p.status]||[])],id);galeria(id,'pedido_id','Foto do pedido',!prod())},
 p(id){if(!prod())semEmpresa();const p=g('pedidos',id);if(!p)return;const it=p.itens||[];
  doc('Ordem de produção #'+id,`<p><b style="font-size:19px">Ordem de produção — Pedido #${p.id}</b></p><table><tr><th style="width:160px">Cliente</th><td>${h(pcli(p))}</td></tr><tr><th>Entrega</th><td>${fdt(p.data_entrega)||'-'}</td></tr><tr><th>Status</th><td>${h(p.status)}</td></tr></table><h2>Itens para produzir</h2><table><tr><th>Produto</th><th class="r">Qtd.</th></tr>${it.map(x=>`<tr><td>${h(x.nome_produto||'Item')}</td><td class="r">${fq(x.quantidade)}</td></tr>`).join('')||'<tr><td colspan="2">Nenhum item cadastrado.</td></tr>'}</table>${p.observacoes?`<h2>Observações</h2><p style="white-space:pre-wrap">${h(p.observacoes)}</p>`:''}`)}},
 

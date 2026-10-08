@@ -103,19 +103,19 @@ window.FB = {
   /* ---------- fotos dos negócios ----------
      Ficam numa coleção à parte (workspaces/principal/fotos), fora do carregamento inicial:
      só são lidas quando você abre um negócio. Cada foto já chega reduzida (~150 KB). */
-  async fotos(negId) {
-    const qs = await getDocs(query(collection(db, ...base(), "fotos"), where("negocio_id", "==", Number(negId))));
+  async fotos(negId, campo = "negocio_id") {
+    const qs = await getDocs(query(collection(db, ...base(), "fotos"), where(campo, "==", Number(negId))));
     return qs.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.criado_em || "").localeCompare(b.criado_em || ""));
   },
-  async addFoto(negId, dados) {
+  async addFoto(negId, dados, campo = "negocio_id") {
     const ref = doc(collection(db, ...base(), "fotos"));
-    const r = { negocio_id: Number(negId), dados, criado_em: new Date().toISOString() };
+    const r = { [campo]: Number(negId), dados, criado_em: new Date().toISOString() };
     await setDoc(ref, r);
     return { id: ref.id, ...r };
   },
   delFoto(id) { return deleteDoc(doc(db, ...base(), "fotos", id)); },
-  async apagarFotos(negId) {
-    const qs = await getDocs(query(collection(db, ...base(), "fotos"), where("negocio_id", "==", Number(negId))));
+  async apagarFotos(negId, campo = "negocio_id") {
+    const qs = await getDocs(query(collection(db, ...base(), "fotos"), where(campo, "==", Number(negId))));
     for (let i = 0; i < qs.docs.length; i += 450) {
       const b = writeBatch(db);
       qs.docs.slice(i, i + 450).forEach(d => b.delete(d.ref));
